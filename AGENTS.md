@@ -189,10 +189,33 @@ Ao implementar ou alterar qualquer funcionalidade, os seguintes testes unitário
 | **TC07** | Alteração de status realizada por colaborador gera registro em `HistoricoStatus` com o status anterior, novo e observação. |
 | **TC08** | Solicitante consegue consultar o andamento e o histórico de observações de suas solicitações. |
 | **TC09** | Concessão de prioridade excepcional fora da ordem FIFO exige justificativa e usuário autorizador. |
+| **TC10** | Auto-cadastro de novos solicitantes com validação de e-mail único e hash seguro de senha. |
+| **TC11** | Painel executivo e relatórios restritos exclusivamente a administradores (`@admin_required`). |
+| **TC12** | Administrador consegue alterar perfis e ativar/desativar contas com proteção contra auto-bloqueio. |
+| **TC13** | Reenvio de arquivo PDF corrigido pelo solicitante quando o pedido estiver em `Aguardando correção`. |
+| **TC14** | Rotina de backup gera pacote zip com snapshot SQLite, dump JSON, mídias e retenção automática. |
 
 ---
 
-## 7. Instruções para Agentes Autônomos (Workflow de Execução)
+## 7. Módulos e Rotas Ativas do Sistema
+
+| Funcionalidade | Rota | View / Responsabilidade | Acesso |
+| :--- | :--- | :--- | :--- |
+| **Login** | `/login/` | `login_view`: Autenticação por e-mail | Público |
+| **Auto-cadastro** | `/cadastro/` | `cadastro_view`: Criação de conta de solicitante | Público |
+| **Consulta Rápida** | `/consulta/` | `consulta_publica_protocolo`: Busca por código de protocolo | Público |
+| **Minhas Solicitações**| `/` ou `/minhas-solicitacoes/`| `solicitante_home`: Listagem isolada do usuário logado | Solicitante |
+| **Nova Solicitação** | `/solicitacoes/nova/` | `nova_solicitacao`: Formulário com upload de PDF e protocolo | Solicitante |
+| **Detalhes do Pedido** | `/solicitacoes/<protocolo>/`| `detalhe_solicitacao`: Timeline de status e reenvio de correção | Solicitante / Equipe |
+| **Fila FIFO do Setor** | `/setor/` | `painel_setor`: Fila de atendimento cronológica (#1, #2...) | Colaborador / Admin |
+| **Atendimento Técnico**| `/setor/atendimento/<protocolo>/`| `atendimento_solicitacao`: Visualizador PDF, status e exceções | Colaborador / Admin |
+| **Gestão e Relatórios**| `/gestao/` | `painel_administrativo`: Indicadores, volume e busca global | Administrador |
+| **Gestão de Usuários** | `/gestao/usuarios/` | `gestao_usuarios`: Alteração de perfis e ativação de contas | Administrador |
+| **Download de Anexo** | `/anexos/<id>/download/` | `download_anexo`: Entrega segura via `FileResponse` | Autorizado |
+
+---
+
+## 8. Instruções para Agentes Autônomos (Workflow de Execução)
 
 1. **Antes de codificar**:
    - Leia as regras de negócio deste arquivo e do `README.md`.

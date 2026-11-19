@@ -194,22 +194,49 @@ projeto_integador_impressao/
 │   ├── urls.py             # Roteador raiz
 │   └── wsgi.py
 ├── core/                   # Aplicação principal do sistema
-│   ├── migrations/         # Migrações do banco de dados
+│   ├── management/         # Comandos CLI customizados (backup, restauração, seed)
+│   │   └── commands/
+│   │       ├── backup_sistema.py
+│   │       ├── restaurar_backup.py
+│   │       └── seed_data.py
+│   ├── migrations/         # Migrações do banco de dados (0001, 0002)
 │   ├── templates/          # Templates HTML organizados por módulo
 │   │   ├── base.html
-│   │   ├── solicitante/    # Views e formulários do solicitante
-│   │   └── setor/          # Painel da fila e atendimento
+│   │   ├── consulta.html   # Consulta pública por protocolo
+│   │   ├── auth/           # Login e auto-cadastro
+│   │   │   ├── login.html
+│   │   │   └── cadastro.html
+│   │   ├── solicitante/    # Minhas solicitações, nova e detalhes
+│   │   │   ├── home.html
+│   │   │   ├── nova_solicitacao.html
+│   │   │   └── detalhe_solicitacao.html
+│   │   ├── setor/          # Painel da fila FIFO e tela de atendimento
+│   │   │   ├── painel.html
+│   │   │   └── atendimento.html
+│   │   └── admin_panel/    # Gestão administrativa e de usuários
+│   │       ├── painel.html
+│   │       └── usuarios.html
 │   ├── static/             # Folhas de estilo CSS, scripts JS e imagens
-│   ├── admin.py            # Customização do painel Django Admin
+│   ├── admin.py            # Customização do painel Django Admin nativo
 │   ├── apps.py             # Configuração da app core
-│   ├── forms.py            # Formulários Django e validações customizadas
+│   ├── forms.py            # Formulários Django com validações de PDF
 │   ├── models.py           # Modelos de dados (Usuario, Solicitacao, Anexo, etc.)
-│   ├── tests.py            # Testes unitários e de integração
+│   ├── services.py         # Camada de serviços (protocolo, status atômico, exceções)
+│   ├── tests.py            # Suíte completa com 19 testes automatizados
 │   ├── urls.py             # Rotas internas da aplicação
-│   └── views.py            # Lógica de controle e regras de apresentação
-├── docs/                   # Documentação de apoio e diagramas
+│   └── views.py            # Lógica de controle, decorators e entrega segura
+├── docs/                   # Documentação de apoio, DER e homologação
 │   ├── Documento_Norteador_Sistema_Solicitacao_Impressos.docx
-│   └── diagrama_er_banco.png
+│   ├── diagrama_er_banco.png
+│   ├── Plano_Implantacao_Piloto.md
+│   └── Aprovacao_Publicacao.md
+├── scripts/                # Scripts de automação (backup diário e demonstração)
+│   ├── demonstrar_funcionalidades.py
+│   ├── executar_backup.ps1
+│   └── executar_backup.sh
+├── backups/                # Diretório local de snapshots (ignorado no Git)
+├── media/                  # Armazenamento privado de anexos PDF
+├── .gitignore              # Regras de exclusão do controle de versão
 ├── AGENTS.md               # Diretrizes operacionais para Agentes de IA e Devs
 ├── README.md               # Documentação principal do projeto
 ├── manage.py               # Utilitário CLI do Django
