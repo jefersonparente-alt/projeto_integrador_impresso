@@ -270,7 +270,7 @@ projeto_integador_impressao/
 
 - [x] **Etapa 1: Levantamento de Requisitos e Fluxos** (Concluída - Documento Norteador & DER)
 - [x] **Etapa 2: Especificação de Arquitetura e Modelagem** (Concluída)
-- [ ] **Etapa 3: Preparação do Ambiente e Modelos Django** (Implementação do custom user e modelos no `core/models.py`)
+- [x] **Etapa 3: Preparação do Ambiente e Modelos Django** (Concluída - Modelos, Custom User, Migrações e Testes)
 - [ ] **Etapa 4: Portal do Solicitante** (Formulário com upload de PDF, gerador de protocolo e listagem própria)
 - [ ] **Etapa 5: Painel do Setor de Impressos** (Fila FIFO, modal de conferência, atualização de status com histórico)
 - [ ] **Etapa 6: Segurança, Validações e Testes de Aceitação**
