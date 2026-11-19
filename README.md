@@ -302,7 +302,7 @@ python manage.py restaurar_backup backups/backup_sistema_YYYYMMDD_HHMMSS.zip --c
 - [x] **Etapa 5: Painel do Setor de Impressos** (Concluída - Fila FIFO por ordem de chegada, Tela de Atendimento e Atualização de Status)
 - [x] **Etapa 6: Segurança, Validações e Testes de Aceitação** (Concluída - Row-level security, isolamento de anexos e 19 testes automatizados aprovados)
 - [x] **Etapa 7: Implantação Piloto e Homologação Escolar** (Concluída - Plano operacional estruturado em docs/Plano_Implantacao_Piloto.md)
-- [ ] **Etapa 8: Publicação e Treinamento**
+- [x] **Etapa 8: Publicação e Treinamento** (Concluída - Sistema aprovado para publicação institucional em docs/Aprovacao_Publicacao.md)
 
 ---
 
