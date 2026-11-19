@@ -1,6 +1,7 @@
 import os
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import Solicitacao, Usuario
@@ -35,9 +36,93 @@ class LoginForm(AuthenticationForm):
     )
 
 
+class CadastroUsuarioForm(forms.ModelForm):
+    """
+    Formulário de Auto-cadastro para novos Solicitantes (Alunos, Professores, Servidores).
+    """
+
+    senha = forms.CharField(
+        label='Senha',
+        widget=forms.PasswordInput(
+            attrs={
+                'class': 'form-control',
+                'placeholder': 'Crie uma senha segura',
+                'autocomplete': 'new-password',
+            }
+        ),
+    )
+    confirmacao_senha = forms.CharField(
+        label='Confirmação de Senha',
+        widget=forms.PasswordInput(
+            attrs={
+                'class': 'form-control',
+                'placeholder': 'Repita a senha digitada',
+                'autocomplete': 'new-password',
+            }
+        ),
+    )
+
+    class Meta:
+        model = Usuario
+        fields = ['nome', 'email', 'setor_turma', 'contato']
+        widgets = {
+            'nome': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'Seu nome completo',
+                    'autofocus': True,
+                }
+            ),
+            'email': forms.EmailInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'seu.email@escola.edu.br',
+                }
+            ),
+            'setor_turma': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'Ex: 3º Ano Informática, Coordenação, etc.',
+                }
+            ),
+            'contato': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'Ex: (11) 98888-7777',
+                }
+            ),
+        }
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip().lower()
+        if Usuario.objects.filter(email=email).exists():
+            raise ValidationError('Já existe uma conta cadastrada com este endereço de e-mail.')
+        return email
+
+    def clean(self):
+        cleaned_data = super().clean()
+        senha = cleaned_data.get('senha')
+        confirmacao = cleaned_data.get('confirmacao_senha')
+
+        if senha and confirmacao:
+            if senha != confirmacao:
+                self.add_error('confirmacao_senha', 'As senhas informadas não coincidem.')
+            else:
+                validate_password(senha)
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.perfil = Usuario.PERFIL_SOLICITANTE
+        user.set_password(self.cleaned_data['senha'])
+        if commit:
+            user.save()
+        return user
+
+
 class SolicitacaoForm(forms.ModelForm):
     """
-    Formulário para abertura de nova solicitação de impressão com upload de PDF.
+    Formulário para abertura e cadastro de nova solicitação de impressão com upload de PDF.
     """
 
     arquivo = forms.FileField(

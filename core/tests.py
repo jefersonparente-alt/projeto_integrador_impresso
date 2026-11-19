@@ -274,6 +274,25 @@ class ViewsFluxoCompletoTestCase(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertIn(resp.url, ['/', '/minhas-solicitacoes/'])
 
+    def test_cadastro_novo_solicitante(self):
+        """Valida auto-cadastro de novo usuário com perfil solicitante."""
+        dados = {
+            'nome': 'Novo Aluno',
+            'email': 'novo.aluno@escola.edu.br',
+            'setor_turma': '1º Ano Informática',
+            'contato': '(11) 97777-6666',
+            'senha': 'senha_super_segura_123',
+            'confirmacao_senha': 'senha_super_segura_123',
+        }
+        resp = self.client.post('/cadastro/', dados)
+        self.assertEqual(resp.status_code, 302)
+
+        novo_user = Usuario.objects.filter(email='novo.aluno@escola.edu.br').first()
+        self.assertIsNotNone(novo_user)
+        self.assertEqual(novo_user.nome, 'Novo Aluno')
+        self.assertEqual(novo_user.perfil, Usuario.PERFIL_SOLICITANTE)
+        self.assertTrue(novo_user.check_password('senha_super_segura_123'))
+
     def test_isolamento_solicitante_minhas_solicitacoes(self):
         """Garante que Solicitante B NÃO vê as solicitações do Solicitante A."""
         self.client.login(username=self.solicitante_b.email, password=self.senha_padrao)

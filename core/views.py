@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from .forms import LoginForm, SolicitacaoForm
+from .forms import LoginForm, SolicitacaoForm, CadastroUsuarioForm
 from .models import Anexo, HistoricoStatus, Solicitacao, Usuario
 from .services import (
     alterar_status_solicitacao,
@@ -60,6 +60,26 @@ def logout_view(request):
     logout(request)
     messages.info(request, 'Você encerrou a sua sessão com sucesso.')
     return redirect('login')
+
+
+def cadastro_view(request):
+    """Tela de cadastro de novo Solicitante (Auto-cadastro)."""
+    if request.user.is_authenticated:
+        return redirect('solicitante_home')
+
+    if request.method == 'POST':
+        form = CadastroUsuarioForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, f'Conta criada com sucesso! Seja bem-vindo(a), {user.nome}.')
+            return redirect('solicitante_home')
+        else:
+            messages.error(request, 'Por favor, corrija os erros apontados no formulário de cadastro.')
+    else:
+        form = CadastroUsuarioForm()
+
+    return render(request, 'auth/cadastro.html', {'form': form})
 
 
 # ==============================================================================
