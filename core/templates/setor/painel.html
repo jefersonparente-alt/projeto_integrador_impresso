@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Painel do Setor de Impressos • Fila FIFO{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Cabeçalho do Setor -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold mb-0 text-dark">Painel do Setor de Impressos</h3>
+                <span class="badge bg-primary text-uppercase" style="font-size: 0.75rem;">Regra FIFO Ativa</span>
+            </div>
+            <p class="text-muted small mb-0">Fila única de trabalho ordenada estritamente pela data e hora de recebimento.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'painel_setor' %}" class="btn btn-outline-secondary btn-sm" title="Atualizar Fila">
+                <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+            </a>
+            <a href="{% url 'nova_solicitacao' %}" class="btn btn-primary btn-sm fw-semibold" style="background-color: var(--primary-color);">
+                <i class="bi bi-plus-lg me-1"></i> Nova Solicitação
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards de Métricas Operacionais -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-info">
+                <div class="text-info small fw-semibold text-uppercase" style="font-size: 0.72rem;">Aguardando na Fila</div>
+                <div class="fs-3 fw-bold text-dark mt-1">{{ metricas.na_fila }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-warning">
+                <div class="text-warning small fw-semibold text-uppercase" style="font-size: 0.72rem;">Em Andamento</div>
+                <div class="fs-3 fw-bold text-dark mt-1">{{ metricas.em_andamento }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-danger">
+                <div class="text-danger small fw-semibold text-uppercase" style="font-size: 0.72rem;">Aguardando Correção</div>
+                <div class="fs-3 fw-bold text-dark mt-1">{{ metricas.aguardando_correcao }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-success">
+                <div class="text-success small fw-semibold text-uppercase" style="font-size: 0.72rem;">Concluídas Hoje</div>
+                <div class="fs-3 fw-bold text-dark mt-1">{{ metricas.concluidas_hoje }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navegação por Abas (Fila Ativa vs Histórico Concluído) -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link {% if aba != 'historico' %}active fw-bold text-primary{% else %}text-secondary{% endif %}" href="{% url 'painel_setor' %}?aba=fila">
+                <i class="bi bi-list-ol me-1"></i> Fila de Atendimento (FIFO)
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if aba == 'historico' %}active fw-bold text-primary{% else %}text-secondary{% endif %}" href="{% url 'painel_setor' %}?aba=historico">
+                <i class="bi bi-archive me-1"></i> Histórico (Concluídas / Canceladas)
+            </a>
+        </li>
+    </ul>
+
+    <!-- Barra de Filtros e Pesquisa -->
+    <div class="card card-custom bg-white mb-4">
+        <div class="card-body p-3">
+            <form method="get" class="row g-2 align-items-center">
+                <input type="hidden" name="aba" value="{{ aba }}">
+                <div class="col-12 col-md-5">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" name="q" class="form-control" placeholder="Buscar por protocolo, solicitante ou turma..." value="{{ busca }}">
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Todos os status da aba</option>
+                        {% for valor, rotulo in status_choices %}
+                        <option value="{{ valor }}" {% if status_filtro == valor %}selected{% endif %}>{{ rotulo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm flex-grow-1">Filtrar</button>
+                    {% if status_filtro or busca %}
+                    <a href="{% url 'painel_setor' %}?aba={{ aba }}" class="btn btn-outline-danger btn-sm" title="Limpar filtros">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela da Fila do Setor -->
+    <div class="card card-custom bg-white overflow-hidden shadow-sm">
+        {% if solicitacoes %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                    <tr>
+                        <th scope="col" class="ps-3 text-center" style="width: 50px;">Posição</th>
+                        <th scope="col">Protocolo</th>
+                        <th scope="col">Solicitante / Setor</th>
+                        <th scope="col">Data/Hora Chegada</th>
+                        <th scope="col">Detalhes do Pedido</th>
+                        <th scope="col">Status Atual</th>
+                        <th scope="col" class="text-end pe-3">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in solicitacoes %}
+                    <tr {% if item.status_atual == 'EM_ANDAMENTO' %}class="table-warning bg-opacity-10"{% endif %}>
+                        <td class="ps-3 text-center fw-bold text-muted">
+                            {% if aba != 'historico' %}
+                                #{{ forloop.counter }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'atendimento_solicitacao' protocolo=item.protocolo %}" class="fw-bold font-monospace text-decoration-none text-primary">
+                                {{ item.protocolo }}
+                            </a>
+                            {% if item.excecoes_prioridade.exists %}
+                            <div>
+                                <span class="badge bg-danger text-uppercase" style="font-size: 0.65rem;" title="Prioridade excepcional concedida!">
+                                    <i class="bi bi-lightning-fill"></i> Urgência
+                                </span>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark">{{ item.solicitante.nome }}</div>
+                            <div class="text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ item.setor_turma }}</div>
+                        </td>
+                        <td class="small">
+                            <div class="text-dark fw-semibold">{{ item.criado_em|date:"d/m/Y H:i" }}</div>
+                            {% if item.prazo_desejado %}
+                            <div class="text-muted" style="font-size: 0.75rem;">
+                                Prazo inf: {{ item.prazo_desejado|date:"d/m/Y" }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            <span class="badge bg-light text-dark border">{{ item.quantidade_copias }} cópia(s)</span>
+                            <span class="badge bg-light text-dark border">{{ item.get_tipo_impressao_display }}</span>
+                            {% if item.frente_verso %}
+                            <span class="badge bg-light text-dark border">F/V</span>
+                            {% else %}
+                            <span class="badge bg-light text-secondary border">Frente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.status_atual == 'RECEBIDA' %}
+                                <span class="badge badge-recebida"><i class="bi bi-inbox-fill me-1"></i> Recebida</span>
+                            {% elif item.status_atual == 'EM_ANDAMENTO' %}
+                                <span class="badge badge-em-andamento"><i class="bi bi-gear-wide-connected me-1"></i> Em andamento</span>
+                            {% elif item.status_atual == 'AGUARDANDO_CORRECAO' %}
+                                <span class="badge badge-aguardando-correcao"><i class="bi bi-exclamation-triangle-fill me-1"></i> Aguardando correção</span>
+                            {% elif item.status_atual == 'CONCLUIDA' %}
+                                <span class="badge badge-concluida"><i class="bi bi-check-circle-fill me-1"></i> Concluída</span>
+                            {% elif item.status_atual == 'CANCELADA' %}
+                                <span class="badge badge-cancelada"><i class="bi bi-x-circle-fill me-1"></i> Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <a href="{% url 'atendimento_solicitacao' protocolo=item.protocolo %}" class="btn btn-primary btn-sm fw-semibold shadow-sm d-inline-flex align-items-center gap-1" style="background-color: var(--primary-color);">
+                                <i class="bi bi-pencil-square"></i>
+                                <span>Atender</span>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 px-3">
+            <div class="d-inline-flex align-items-center justify-content-center bg-light text-success rounded-circle mb-3" style="width: 72px; height: 72px;">
+                <i class="bi bi-check2-circle fs-1"></i>
+            </div>
+            <h5 class="fw-bold text-dark">Nenhum pedido na fila no momento</h5>
+            <p class="text-muted small mb-0">Todas as solicitações de impressão recebidas foram processadas ou atendidas.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

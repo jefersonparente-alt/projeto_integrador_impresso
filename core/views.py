@@ -1,18 +1,38 @@
+from functools import wraps
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from .forms import LoginForm, SolicitacaoForm
-from .models import Anexo, HistoricoStatus, Solicitacao
-from .services import gerar_protocolo_unico
+from .models import Anexo, HistoricoStatus, Solicitacao, Usuario
+from .services import (
+    alterar_status_solicitacao,
+    gerar_protocolo_unico,
+    registrar_excecao_prioridade,
+)
+
+
+def colaborador_required(view_func):
+    """Decorator para restringir acesso a colaboradores do setor e administradores."""
+    @wraps(view_func)
+    @login_required
+    def _wrapped_view(request, *args, **kwargs):
+        if not (request.user.is_colaborador or request.user.is_administrador or request.user.is_superuser):
+            raise PermissionDenied("Acesso restrito à equipe do setor de impressos.")
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
 
 
 def login_view(request):
     """Tela de autenticação do sistema."""
     if request.user.is_authenticated:
+        if request.user.is_colaborador:
+            return redirect('painel_setor')
         return redirect('solicitante_home')
 
     if request.method == 'POST':
@@ -24,6 +44,8 @@ def login_view(request):
             next_url = request.GET.get('next')
             if next_url:
                 return redirect(next_url)
+            if user.is_colaborador:
+                return redirect('painel_setor')
             return redirect('solicitante_home')
         else:
             messages.error(request, 'E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.')
@@ -39,6 +61,10 @@ def logout_view(request):
     messages.info(request, 'Você encerrou a sua sessão com sucesso.')
     return redirect('login')
 
+
+# ==============================================================================
+# ÁREA DO SOLICITANTE
+# ==============================================================================
 
 @login_required
 def solicitante_home(request):
@@ -115,14 +141,12 @@ def nova_solicitacao(request):
 
             messages.success(
                 request,
-                f'Solicitação registrada com sucesso! Seu número de protocolo é {solicitacao.protocolo}. '
-                f'Você pode acompanhar o andamento nesta tela.'
+                f'Solicitação registrada com sucesso! Seu número de protocolo é {solicitacao.protocolo}.'
             )
             return redirect('detalhe_solicitacao', protocolo=solicitacao.protocolo)
         else:
             messages.error(request, 'Houve um erro no preenchimento do formulário. Corrija os campos destacados.')
     else:
-        # Preenche com dados conhecidos do usuário autenticado
         dados_iniciais = {
             'setor_turma': request.user.setor_turma,
             'contato': request.user.contato or request.user.email,
@@ -143,7 +167,6 @@ def detalhe_solicitacao(request, protocolo):
     """
     solicitacao = get_object_or_404(Solicitacao, protocolo=protocolo)
 
-    # Checagem de isolamento de dados
     if (
         solicitacao.solicitante != request.user
         and not request.user.is_colaborador
@@ -173,7 +196,6 @@ def download_anexo(request, anexo_id):
     anexo = get_object_or_404(Anexo, id=anexo_id)
     solicitacao = anexo.solicitacao
 
-    # Validação de permissão
     if (
         solicitacao.solicitante != request.user
         and not request.user.is_colaborador
@@ -190,3 +212,127 @@ def download_anexo(request, anexo_id):
     )
     response['Content-Disposition'] = f'inline; filename="{anexo.nome_original}"'
     return response
+
+
+# ==============================================================================
+# PAINEL DO SETOR DE IMPRESSOS E ATENDIMENTO (COLABORADOR / ADMIN)
+# ==============================================================================
+
+@colaborador_required
+def painel_setor(request):
+    """
+    Painel de trabalho do setor de impressos.
+    A fila padrão é rigorosamente ordenada por FIFO (criado_em ASC, id ASC).
+    """
+    hoje = timezone.now().date()
+    qs_total = Solicitacao.objects.all()
+
+    # Métricas do Setor
+    metricas = {
+        'na_fila': qs_total.filter(status_atual=Solicitacao.STATUS_RECEBIDA).count(),
+        'em_andamento': qs_total.filter(status_atual=Solicitacao.STATUS_EM_ANDAMENTO).count(),
+        'aguardando_correcao': qs_total.filter(status_atual=Solicitacao.STATUS_AGUARDANDO_CORRECAO).count(),
+        'concluidas_hoje': qs_total.filter(status_atual=Solicitacao.STATUS_CONCLUIDA, historicos__status_novo=Solicitacao.STATUS_CONCLUIDA, historicos__data_hora__date=hoje).distinct().count(),
+        'total_geral': qs_total.count(),
+    }
+
+    # Aba ativa: 'fila' (padrão) ou 'historico' (concluídas e canceladas)
+    aba = request.GET.get('aba', 'fila').strip()
+    status_filtro = request.GET.get('status', '').strip()
+    busca = request.GET.get('q', '').strip()
+
+    if aba == 'historico':
+        solicitacoes = qs_total.filter(
+            Q(status_atual=Solicitacao.STATUS_CONCLUIDA) | Q(status_atual=Solicitacao.STATUS_CANCELADA)
+        ).order_by('-criado_em', '-id')
+    else:
+        # Fila de atendimento padrão: ordenada estritamente por FIFO
+        solicitacoes = qs_total.exclude(
+            Q(status_atual=Solicitacao.STATUS_CONCLUIDA) | Q(status_atual=Solicitacao.STATUS_CANCELADA)
+        ).order_by('criado_em', 'id')
+
+    if status_filtro and status_filtro in dict(Solicitacao.STATUS_CHOICES):
+        solicitacoes = solicitacoes.filter(status_atual=status_filtro)
+
+    if busca:
+        solicitacoes = solicitacoes.filter(
+            Q(protocolo__icontains=busca) |
+            Q(solicitante__nome__icontains=busca) |
+            Q(setor_turma__icontains=busca)
+        )
+
+    context = {
+        'solicitacoes': solicitacoes,
+        'metricas': metricas,
+        'aba': aba,
+        'status_filtro': status_filtro,
+        'busca': busca,
+        'status_choices': Solicitacao.STATUS_CHOICES,
+    }
+    return render(request, 'setor/painel.html', context)
+
+
+@colaborador_required
+def atendimento_solicitacao(request, protocolo):
+    """
+    Tela de Atendimento do Setor de Impressos.
+    Permite conferir o arquivo, atualizar o status com observação auditada,
+    e registrar exceção de prioridade caso necessário.
+    """
+    solicitacao = get_object_or_404(Solicitacao, protocolo=protocolo)
+    anexos = solicitacao.anexos.all()
+    historicos = solicitacao.historicos.all().order_by('-data_hora')
+    excecoes = solicitacao.excecoes_prioridade.all()
+
+    if request.method == 'POST':
+        acao = request.POST.get('acao')
+
+        # 1. Atualização de Status
+        if acao == 'atualizar_status':
+            novo_status = request.POST.get('novo_status')
+            observacao = request.POST.get('observacao', '').strip()
+
+            if novo_status not in dict(Solicitacao.STATUS_CHOICES):
+                messages.error(request, 'Status selecionado é inválido.')
+            elif novo_status in [Solicitacao.STATUS_AGUARDANDO_CORRECAO, Solicitacao.STATUS_CANCELADA] and not observacao:
+                messages.error(request, f'É obrigatório registrar uma observação/motivo ao alterar para "{novo_status}".')
+            else:
+                alterar_status_solicitacao(
+                    solicitacao=solicitacao,
+                    novo_status=novo_status,
+                    usuario_responsavel=request.user,
+                    observacao=observacao,
+                )
+                messages.success(request, f'Status atualizado para "{solicitacao.get_status_atual_display()}" com sucesso!')
+                return redirect('atendimento_solicitacao', protocolo=solicitacao.protocolo)
+
+        # 2. Concessão de Exceção de Prioridade
+        elif acao == 'registrar_excecao':
+            justificativa = request.POST.get('justificativa', '').strip()
+            if not justificativa:
+                messages.error(request, 'A justificativa para quebra excepcional da fila é obrigatória.')
+            else:
+                registrar_excecao_prioridade(
+                    solicitacao=solicitacao,
+                    autorizado_por=request.user,
+                    justificativa=justificativa,
+                )
+                # Opcional: altera status para em andamento
+                if solicitacao.status_atual == Solicitacao.STATUS_RECEBIDA:
+                    alterar_status_solicitacao(
+                        solicitacao=solicitacao,
+                        novo_status=Solicitacao.STATUS_EM_ANDAMENTO,
+                        usuario_responsavel=request.user,
+                        observacao=f"Prioridade concedida: {justificativa}",
+                    )
+                messages.success(request, 'Exceção de prioridade registrada com sucesso!')
+                return redirect('atendimento_solicitacao', protocolo=solicitacao.protocolo)
+
+    context = {
+        'solicitacao': solicitacao,
+        'anexos': anexos,
+        'historicos': historicos,
+        'excecoes': excecoes,
+        'status_choices': Solicitacao.STATUS_CHOICES,
+    }
+    return render(request, 'setor/atendimento.html', context)

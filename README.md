@@ -298,9 +298,9 @@ python manage.py restaurar_backup backups/backup_sistema_YYYYMMDD_HHMMSS.zip --c
 - [x] **Etapa 1: Levantamento de Requisitos e Fluxos** (Concluída - Documento Norteador & DER)
 - [x] **Etapa 2: Especificação de Arquitetura e Modelagem** (Concluída)
 - [x] **Etapa 3: Preparação do Ambiente e Modelos Django** (Concluída - Modelos, Custom User, Migrações e Testes)
-- [ ] **Etapa 4: Portal do Solicitante** (Formulário com upload de PDF, gerador de protocolo e listagem própria)
-- [ ] **Etapa 5: Painel do Setor de Impressos** (Fila FIFO, modal de conferência, atualização de status com histórico)
-- [ ] **Etapa 6: Segurança, Validações e Testes de Aceitação**
+- [x] **Etapa 4: Portal do Solicitante** (Concluída - Login, Minhas Solicitações, Formulário com upload de PDF e Protocolo)
+- [x] **Etapa 5: Painel do Setor de Impressos** (Concluída - Fila FIFO por ordem de chegada, Tela de Atendimento e Atualização de Status)
+- [x] **Etapa 6: Segurança, Validações e Testes de Aceitação** (Concluída - Row-level security, isolamento de anexos e 15 testes aprovados)
 - [ ] **Etapa 7: Implantação Piloto e Homologação Escolar**
 - [ ] **Etapa 8: Publicação e Treinamento**
 

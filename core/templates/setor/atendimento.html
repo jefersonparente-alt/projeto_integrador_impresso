@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Atendimento: {{ solicitacao.protocolo }} • Painel do Setor{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb e Título -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="{% url 'painel_setor' %}" class="text-decoration-none">Fila do Setor</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Atendimento: {{ solicitacao.protocolo }}</li>
+        </ol>
+    </nav>
+
+    <!-- Cabeçalho do Atendimento -->
+    <div class="card card-custom bg-white shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="fs-4 fw-bold font-monospace text-primary">{{ solicitacao.protocolo }}</span>
+                        {% if solicitacao.status_atual == 'RECEBIDA' %}
+                            <span class="badge badge-recebida fs-6 px-3 py-1"><i class="bi bi-inbox-fill me-1"></i> Recebida</span>
+                        {% elif solicitacao.status_atual == 'EM_ANDAMENTO' %}
+                            <span class="badge badge-em-andamento fs-6 px-3 py-1"><i class="bi bi-gear-wide-connected me-1"></i> Em andamento</span>
+                        {% elif solicitacao.status_atual == 'AGUARDANDO_CORRECAO' %}
+                            <span class="badge badge-aguardando-correcao fs-6 px-3 py-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Aguardando correção</span>
+                        {% elif solicitacao.status_atual == 'CONCLUIDA' %}
+                            <span class="badge badge-concluida fs-6 px-3 py-1"><i class="bi bi-check-circle-fill me-1"></i> Concluída</span>
+                        {% elif solicitacao.status_atual == 'CANCELADA' %}
+                            <span class="badge badge-cancelada fs-6 px-3 py-1"><i class="bi bi-x-circle-fill me-1"></i> Cancelada</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-muted small">
+                        <i class="bi bi-clock-history me-1"></i> Recebido no servidor: <strong>{{ solicitacao.criado_em|date:"d/m/Y \à\s H:i:s" }}</strong>
+                        <span class="mx-2">•</span>
+                        <i class="bi bi-person-fill me-1"></i> Solicitante: <strong>{{ solicitacao.solicitante.nome }}</strong> ({{ solicitacao.solicitante.email }})
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'painel_setor' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i> Voltar à Fila
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Coluna da Esquerda: Especificações, Documento e Visualização -->
+        <div class="col-12 col-lg-7">
+            <!-- Dados do Pedido -->
+            <div class="card card-custom bg-white shadow-sm border-0 mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-card-checklist text-primary me-2"></i>Instruções de Impressão</h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <div class="text-muted small">Setor / Turma:</div>
+                            <div class="fw-semibold text-dark">{{ solicitacao.setor_turma }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="text-muted small">Contato de Retorno:</div>
+                            <div class="fw-semibold text-dark">{{ solicitacao.contato }}</div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="text-muted small">Quantidade Solicitada:</div>
+                            <div class="fw-bold text-dark fs-5">{{ solicitacao.quantidade_copias }} <span class="fs-6 fw-normal text-muted">cópias</span></div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="text-muted small">Tipo:</div>
+                            <div class="fw-semibold text-dark">{{ solicitacao.get_tipo_impressao_display }}</div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="text-muted small">Frente e Verso:</div>
+                            <div class="fw-semibold text-dark">
+                                {% if solicitacao.frente_verso %}
+                                    <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i> Sim</span>
+                                {% else %}
+                                    <span class="text-secondary"><i class="bi bi-dash-circle me-1"></i> Não (Frente)</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="text-muted small">Prazo Informativo:</div>
+                            <div class="fw-semibold text-dark">
+                                {% if solicitacao.prazo_desejado %}
+                                    {{ solicitacao.prazo_desejado|date:"d/m/Y" }}
+                                {% else %}
+                                    <span class="text-muted fst-italic">Não informado</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="text-muted small mb-1">Instruções Técnicas do Solicitante:</div>
+                            <div class="p-3 bg-light rounded border small">
+                                {% if solicitacao.instrucoes %}
+                                    {{ solicitacao.instrucoes|linebreaks }}
+                                {% else %}
+                                    <span class="text-muted fst-italic">Sem instruções adicionais informadas.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arquivo Anexado e Pré-visualização -->
+            <div class="card card-custom bg-white shadow-sm border-0 mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-file-earmark-pdf text-danger me-2"></i>Documento Anexado (PDF)</h6>
+                    {% if anexos %}
+                    <a href="{% url 'download_anexo' anexos.0.id %}" target="_blank" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        <span>Abrir em Nova Guia</span>
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body p-4">
+                    {% if anexos %}
+                        {% for anexo in anexos %}
+                        <div class="p-3 border rounded-3 bg-light mb-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <div class="fw-bold text-dark">{{ anexo.nome_original }}</div>
+                                    <div class="text-muted small">
+                                        {{ anexo.tamanho_bytes|filesizeformat }} • Enviado em {{ anexo.enviado_em|date:"d/m/Y H:i" }}
+                                    </div>
+                                </div>
+                                <a href="{% url 'download_anexo' anexo.id %}" class="btn btn-primary btn-sm shadow-sm">
+                                    <i class="bi bi-download me-1"></i> Baixar Arquivo
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Pré-visualização Embutida do PDF -->
+                        <div class="border rounded overflow-hidden" style="height: 480px;">
+                            <iframe src="{% url 'download_anexo' anexo.id %}" width="100%" height="100%" style="border: none;">
+                                <p>Seu navegador não suporta visualização embutida de PDFs. Utilize o botão acima para baixar.</p>
+                            </iframe>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small mb-0">Nenhum anexo encontrado para esta solicitação.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna da Direita: Atualização de Status, Prioridade e Histórico -->
+        <div class="col-12 col-lg-5">
+            <!-- Formulário de Transição de Status -->
+            <div class="card card-custom bg-white shadow-sm border-0 mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-arrow-repeat text-success me-2"></i>Atualizar Situação do Atendimento</h6>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="acao" value="atualizar_status">
+
+                        <div class="mb-3">
+                            <label for="novo_status" class="form-label fw-semibold small">Novo Status <span class="text-danger">*</span></label>
+                            <select name="novo_status" id="novo_status" class="form-select" required>
+                                {% for valor, rotulo in status_choices %}
+                                <option value="{{ valor }}" {% if solicitacao.status_atual == valor %}selected{% endif %}>
+                                    {{ rotulo }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="observacao" class="form-label fw-semibold small">
+                                Observação Técnica / Justificativa
+                            </label>
+                            <textarea name="observacao" id="observacao" class="form-control" rows="3" placeholder="Ex: Impressão iniciada na máquina 2; aguardando papel A3; páginas faltantes; concluída para retirada no balcão."></textarea>
+                            <div class="form-text small" style="font-size: 0.72rem;">
+                                Obrigatória ao marcar "Aguardando correção" ou "Cancelada". Ficará visível para o solicitante.
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 fw-semibold shadow-sm">
+                            <i class="bi bi-check2-circle me-1"></i> Salvar e Notificar Mudança
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Concessão de Prioridade Excepcional (Apenas se não for concluída) -->
+            {% if solicitacao.status_atual != 'CONCLUIDA' and solicitacao.status_atual != 'CANCELADA' %}
+            <div class="card card-custom bg-white shadow-sm border-0 mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-danger"><i class="bi bi-lightning-fill text-danger me-2"></i>Tratar com Prioridade (Exceção)</h6>
+                </div>
+                <div class="card-body p-4">
+                    <p class="small text-muted mb-3">
+                        A quebra da ordem FIFO é permitida apenas em casos excepcionais e exige registro formal com justificativa auditada.
+                    </p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="acao" value="registrar_excecao">
+
+                        <div class="mb-3">
+                            <label for="justificativa" class="form-label fw-semibold small">Justificativa da Urgência <span class="text-danger">*</span></label>
+                            <textarea name="justificativa" id="justificativa" class="form-control form-control-sm" rows="2" placeholder="Ex: Prova institucional para aplicação imediata; ordem da direção escolar." required></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100 fw-semibold">
+                            <i class="bi bi-shield-exclamation me-1"></i> Autorizar Exceção de Prioridade
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Histórico e Auditoria -->
+            <div class="card card-custom bg-white shadow-sm border-0">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-clock-history text-primary me-2"></i>Histórico de Auditoria</h6>
+                </div>
+                <div class="card-body p-4">
+                    {% if historicos %}
+                    <div class="position-relative ps-3 border-start border-2 border-primary ms-2">
+                        {% for hist in historicos %}
+                        <div class="mb-4 position-relative">
+                            <div class="position-absolute bg-primary rounded-circle" style="width: 12px; height: 12px; left: -23px; top: 4px;"></div>
+                            <div class="fw-bold small text-dark">
+                                Status: <span class="badge bg-secondary">{{ hist.status_novo }}</span>
+                                {% if hist.status_anterior != '-' %}
+                                <span class="text-muted fw-normal" style="font-size: 0.75rem;">(anterior: {{ hist.status_anterior }})</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-muted small mb-1" style="font-size: 0.78rem;">
+                                <i class="bi bi-clock me-1"></i> {{ hist.data_hora|date:"d/m/Y \à\s H:i:s" }}
+                                {% if hist.usuario_responsavel %}
+                                • por <strong>{{ hist.usuario_responsavel.nome }}</strong>
+                                {% endif %}
+                            </div>
+                            {% if hist.observacao %}
+                            <div class="p-2 bg-light rounded border text-secondary small mt-1">
+                                <i class="bi bi-chat-quote me-1"></i> {{ hist.observacao }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">Nenhum evento registrado.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -213,3 +213,168 @@ class BancoDeDadosModelosTestCase(TestCase):
             backup_files_pos = list(Path(temp_dir).glob('backup_sistema_*.zip'))
             self.assertEqual(len(backup_files_pos), 2)
 
+
+class ViewsFluxoCompletoTestCase(TestCase):
+    """
+    Testes de Integração de Telas e Fluxos:
+    - Login / Logout
+    - Minhas Solicitações e Isolamento entre Solicitantes
+    - Envio de Nova Solicitação com Validação de PDF
+    - Painel do Setor com Ordenação FIFO
+    - Tela de Atendimento e Transição de Status
+    """
+
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .services import gerar_protocolo_unico
+
+        self.senha_padrao = 'senha12345'
+
+        self.solicitante_a = Usuario.objects.create_user(
+            email='aluno.a@escola.edu.br',
+            nome='Aluno A',
+            password=self.senha_padrao,
+            perfil=Usuario.PERFIL_SOLICITANTE,
+            setor_turma='3º Ano A',
+        )
+
+        self.solicitante_b = Usuario.objects.create_user(
+            email='aluno.b@escola.edu.br',
+            nome='Aluno B',
+            password=self.senha_padrao,
+            perfil=Usuario.PERFIL_SOLICITANTE,
+            setor_turma='3º Ano B',
+        )
+
+        self.colaborador = Usuario.objects.create_user(
+            email='colaborador@escola.edu.br',
+            nome='Operador Gráfica',
+            password=self.senha_padrao,
+            perfil=Usuario.PERFIL_COLABORADOR,
+            setor_turma='Setor de Impressões',
+        )
+
+        # Solicitação prévia de A
+        self.solic_a = Solicitacao.objects.create(
+            protocolo=gerar_protocolo_unico(),
+            solicitante=self.solicitante_a,
+            setor_turma='3º Ano A',
+            contato='aluno.a@escola.edu.br',
+            quantidade_copias=2,
+            tipo_impressao=Solicitacao.TIPO_PB,
+            status_atual=Solicitacao.STATUS_RECEBIDA,
+        )
+
+    def test_tela_login_com_sucesso(self):
+        """Valida login de usuário e redirecionamento correto."""
+        resp = self.client.post('/login/', {
+            'username': self.solicitante_a.email,
+            'password': self.senha_padrao,
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(resp.url, ['/', '/minhas-solicitacoes/'])
+
+    def test_isolamento_solicitante_minhas_solicitacoes(self):
+        """Garante que Solicitante B NÃO vê as solicitações do Solicitante A."""
+        self.client.login(username=self.solicitante_b.email, password=self.senha_padrao)
+        resp = self.client.get('/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, self.solic_a.protocolo)
+
+        # Mas Solicitante A consegue visualizar
+        self.client.logout()
+        self.client.login(username=self.solicitante_a.email, password=self.senha_padrao)
+        resp = self.client.get('/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, self.solic_a.protocolo)
+
+    def test_formulario_nova_solicitacao_pdf_valido(self):
+        """Valida abertura de pedido com upload de PDF e criação do anexo."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.client.login(username=self.solicitante_a.email, password=self.senha_padrao)
+        pdf_conteudo = b"%PDF-1.4 ... dados de teste pdf ..."
+        arquivo_pdf = SimpleUploadedFile("prova.pdf", pdf_conteudo, content_type="application/pdf")
+
+        dados = {
+            'setor_turma': '3º Ano A',
+            'contato': 'aluno.a@escola.edu.br',
+            'quantidade_copias': 5,
+            'tipo_impressao': 'pb',
+            'frente_verso': True,
+            'instrucoes': 'Imprimir frente e verso.',
+            'arquivo': arquivo_pdf,
+        }
+
+        resp = self.client.post('/solicitacoes/nova/', dados)
+        self.assertEqual(resp.status_code, 302)
+
+        nova = Solicitacao.objects.filter(solicitante=self.solicitante_a).exclude(id=self.solic_a.id).first()
+        self.assertIsNotNone(nova)
+        self.assertEqual(nova.quantidade_copias, 5)
+        self.assertEqual(nova.anexos.count(), 1)
+        self.assertEqual(nova.anexos.first().nome_original, 'prova.pdf')
+
+    def test_recusa_arquivo_invalido(self):
+        """Valida que arquivo com extensão não permitida (.docx) é rejeitado."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.client.login(username=self.solicitante_a.email, password=self.senha_padrao)
+        arquivo_invalido = SimpleUploadedFile("texto.docx", b"conteudo", content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+        dados = {
+            'setor_turma': '3º Ano A',
+            'contato': 'aluno.a@escola.edu.br',
+            'quantidade_copias': 1,
+            'tipo_impressao': 'pb',
+            'arquivo': arquivo_invalido,
+        }
+
+        resp = self.client.post('/solicitacoes/nova/', dados)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Apenas arquivos com extensão .pdf são aceitos")
+
+    def test_painel_setor_fila_fifo(self):
+        """Valida acesso do colaborador e ordenação rigorosa FIFO no painel."""
+        from .services import gerar_protocolo_unico
+
+        # Cria segunda solicitação para testar FIFO
+        time.sleep(0.01)
+        solic_2 = Solicitacao.objects.create(
+            protocolo=gerar_protocolo_unico(),
+            solicitante=self.solicitante_b,
+            setor_turma='3º Ano B',
+            contato='aluno.b@escola.edu.br',
+            quantidade_copias=1,
+            tipo_impressao=Solicitacao.TIPO_PB,
+            status_atual=Solicitacao.STATUS_RECEBIDA,
+        )
+
+        self.client.login(username=self.colaborador.email, password=self.senha_padrao)
+        resp = self.client.get('/setor/')
+        self.assertEqual(resp.status_code, 200)
+        solics = list(resp.context['solicitacoes'])
+        self.assertEqual(solics[0], self.solic_a)
+        self.assertEqual(solics[1], solic_2)
+
+    def test_atendimento_solicitacao_atualizar_status(self):
+        """Valida que colaborador atualiza status e grava observação na tela de atendimento."""
+        self.client.login(username=self.colaborador.email, password=self.senha_padrao)
+        resp = self.client.post(f'/setor/atendimento/{self.solic_a.protocolo}/', {
+            'acao': 'atualizar_status',
+            'novo_status': Solicitacao.STATUS_EM_ANDAMENTO,
+            'observacao': 'Iniciando produção gráfica.',
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        self.solic_a.refresh_from_db()
+        self.assertEqual(self.solic_a.status_atual, Solicitacao.STATUS_EM_ANDAMENTO)
+        self.assertEqual(self.solic_a.historicos.first().observacao, 'Iniciando produção gráfica.')
+
+    def test_solicitante_bloqueado_no_painel_setor(self):
+        """Garante que perfil solicitante recebe 403 Forbidden ao tentar acessar painel do setor."""
+        self.client.login(username=self.solicitante_a.email, password=self.senha_padrao)
+        resp = self.client.get('/setor/')
+        self.assertEqual(resp.status_code, 403)
+
+
