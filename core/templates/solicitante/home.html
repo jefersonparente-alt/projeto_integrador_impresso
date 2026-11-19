@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Minhas Solicitações • Sistema de Impressões{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Cabeçalho da Página -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <h3 class="fw-bold mb-1 text-dark">Minhas Solicitações de Impressão</h3>
+            <p class="text-muted small mb-0">Acompanhe a fila de atendimento e a situação dos seus pedidos em tempo real.</p>
+        </div>
+        <a href="{% url 'nova_solicitacao' %}" class="btn btn-primary fw-semibold shadow-sm d-flex align-items-center gap-2" style="background-color: var(--primary-color);">
+            <i class="bi bi-plus-lg fs-6"></i>
+            <span>Nova Solicitação</span>
+        </a>
+    </div>
+
+    <!-- Cards de Métricas e Resumo -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="card card-custom h-100 p-3 bg-white">
+                <div class="text-muted small fw-semibold text-uppercase" style="font-size: 0.72rem;">Total de Pedidos</div>
+                <div class="fs-3 fw-bold text-dark mt-1">{{ metricas.total }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-info">
+                <div class="text-info small fw-semibold text-uppercase" style="font-size: 0.72rem;">Na Fila (Recebidas)</div>
+                <div class="fs-3 fw-bold text-info mt-1">{{ metricas.recebidas }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-warning">
+                <div class="text-warning small fw-semibold text-uppercase" style="font-size: 0.72rem;">Em Andamento</div>
+                <div class="fs-3 fw-bold text-warning mt-1">{{ metricas.em_andamento }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-danger">
+                <div class="text-danger small fw-semibold text-uppercase" style="font-size: 0.72rem;">Aguardando Correção</div>
+                <div class="fs-3 fw-bold text-danger mt-1">{{ metricas.aguardando_correcao }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-success">
+                <div class="text-success small fw-semibold text-uppercase" style="font-size: 0.72rem;">Concluídas</div>
+                <div class="fs-3 fw-bold text-success mt-1">{{ metricas.concluidas }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros e Busca -->
+    <div class="card card-custom bg-white mb-4">
+        <div class="card-body p-3">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-12 col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" name="q" class="form-control" placeholder="Buscar por protocolo..." value="{{ busca }}">
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Todos os status</option>
+                        {% for valor, rotulo in status_choices %}
+                        <option value="{{ valor }}" {% if status_filtro == valor %}selected{% endif %}>{{ rotulo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm flex-grow-1">Filtrar</button>
+                    {% if status_filtro or busca %}
+                    <a href="{% url 'solicitante_home' %}" class="btn btn-outline-danger btn-sm" title="Limpar filtros">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Solicitações -->
+    <div class="card card-custom bg-white overflow-hidden">
+        {% if solicitacoes %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                    <tr>
+                        <th scope="col" class="ps-3">Protocolo</th>
+                        <th scope="col">Data de Envio</th>
+                        <th scope="col">Opções de Impressão</th>
+                        <th scope="col">Prazo Desejado</th>
+                        <th scope="col">Status Atual</th>
+                        <th scope="col" class="text-end pe-3">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in solicitacoes %}
+                    <tr>
+                        <td class="ps-3">
+                            <a href="{% url 'detalhe_solicitacao' protocolo=item.protocolo %}" class="fw-bold text-decoration-none font-monospace text-primary">
+                                {{ item.protocolo }}
+                            </a>
+                        </td>
+                        <td class="small text-muted">
+                            <div><i class="bi bi-clock me-1"></i>{{ item.criado_em|date:"d/m/Y H:i" }}</div>
+                        </td>
+                        <td class="small">
+                            <span class="badge bg-light text-dark border">{{ item.quantidade_copias }} cópia(s)</span>
+                            <span class="badge bg-light text-dark border">{{ item.get_tipo_impressao_display }}</span>
+                            {% if item.frente_verso %}
+                            <span class="badge bg-light text-dark border">Frente e Verso</span>
+                            {% else %}
+                            <span class="badge bg-light text-secondary border">Frente</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            {% if item.prazo_desejado %}
+                                <span>{{ item.prazo_desejado|date:"d/m/Y" }}</span>
+                            {% else %}
+                                <span class="text-muted fst-italic">Não informado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.status_atual == 'RECEBIDA' %}
+                                <span class="badge badge-recebida"><i class="bi bi-inbox-fill me-1"></i> Recebida</span>
+                            {% elif item.status_atual == 'EM_ANDAMENTO' %}
+                                <span class="badge badge-em-andamento"><i class="bi bi-gear-wide-connected me-1"></i> Em andamento</span>
+                            {% elif item.status_atual == 'AGUARDANDO_CORRECAO' %}
+                                <span class="badge badge-aguardando-correcao"><i class="bi bi-exclamation-triangle-fill me-1"></i> Aguardando correção</span>
+                            {% elif item.status_atual == 'CONCLUIDA' %}
+                                <span class="badge badge-concluida"><i class="bi bi-check-circle-fill me-1"></i> Concluída</span>
+                            {% elif item.status_atual == 'CANCELADA' %}
+                                <span class="badge badge-cancelada"><i class="bi bi-x-circle-fill me-1"></i> Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <a href="{% url 'detalhe_solicitacao' protocolo=item.protocolo %}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" title="Ver Detalhes do Pedido">
+                                <span>Acompanhar</span>
+                                <i class="bi bi-chevron-right small"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <!-- Estado Vazio -->
+        <div class="text-center py-5 px-3">
+            <div class="d-inline-flex align-items-center justify-content-center bg-light text-secondary rounded-circle mb-3" style="width: 72px; height: 72px;">
+                <i class="bi bi-printer fs-1"></i>
+            </div>
+            <h5 class="fw-bold text-dark">Nenhuma solicitação encontrada</h5>
+            {% if status_filtro or busca %}
+            <p class="text-muted small mb-3">Não encontramos solicitações com os filtros selecionados.</p>
+            <a href="{% url 'solicitante_home' %}" class="btn btn-outline-secondary btn-sm">Limpar Filtros</a>
+            {% else %}
+            <p class="text-muted small mb-3">Você ainda não enviou nenhum pedido de impressão para o setor.</p>
+            <a href="{% url 'nova_solicitacao' %}" class="btn btn-primary btn-sm fw-semibold" style="background-color: var(--primary-color);">
+                <i class="bi bi-plus-lg me-1"></i> Criar Minha Primeira Solicitação
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
