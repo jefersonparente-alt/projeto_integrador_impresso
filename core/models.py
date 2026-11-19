@@ -1,6 +1,7 @@
 import os
 import uuid
 from django.db import models
+from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.contrib.auth.models import (
     AbstractBaseUser,
     PermissionsMixin,
@@ -40,6 +41,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     """
     Modelo de Usuário do sistema (Custom User Model).
     Reflete a tabela USUARIO do DER com perfis: solicitante, colaborador e administrador.
+    Integridade: e-mail único, chave primária e auditoria de criação.
     """
 
     PERFIL_SOLICITANTE = 'solicitante'
@@ -93,6 +95,10 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         verbose_name = 'Usuário'
         verbose_name_plural = 'Usuários'
         ordering = ['nome', 'id']
+        indexes = [
+            models.Index(fields=['email'], name='idx_usuario_email'),
+            models.Index(fields=['perfil'], name='idx_usuario_perfil'),
+        ]
 
     def __str__(self) -> str:
         return f"{self.nome} ({self.get_perfil_display()})"
@@ -118,7 +124,6 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         return self.perfil == self.PERFIL_ADMINISTRADOR or self.is_superuser
 
     def save(self, *args, **kwargs):
-        # Garante permissões de staff para o perfil administrador
         if self.perfil == self.PERFIL_ADMINISTRADOR:
             self.is_staff = True
         super().save(*args, **kwargs)
@@ -127,7 +132,11 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
 class Solicitacao(models.Model):
     """
     Representa o pedido de impressão submetido à fila.
-    A ordenação padrão segue rigorosamente o princípio FIFO: criado_em ASC, id ASC.
+    Integridade:
+    - FK para Usuario (solicitante_id) com CASCADE.
+    - Check constraint: quantidade_copias >= 1.
+    - Protocolo com unicidade garantida (unique=True).
+    - Ordenação padrão rigorosa FIFO: criado_em ASC, id ASC.
     """
 
     TIPO_PB = 'pb'
@@ -180,6 +189,7 @@ class Solicitacao(models.Model):
     )
     quantidade_copias = models.PositiveIntegerField(
         default=1,
+        validators=[MinValueValidator(1)],
         verbose_name='Quantidade de Cópias',
     )
     tipo_impressao = models.CharField(
@@ -214,6 +224,17 @@ class Solicitacao(models.Model):
         verbose_name_plural = 'Solicitações'
         # Regra Invariante FIFO: sempre por criado_em ASC e id ASC
         ordering = ['criado_em', 'id']
+        indexes = [
+            models.Index(fields=['criado_em', 'id'], name='idx_solic_fifo'),
+            models.Index(fields=['status_atual'], name='idx_solic_status'),
+            models.Index(fields=['solicitante'], name='idx_solic_solicitante'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantidade_copias__gte=1),
+                name='check_solicitacao_copias_positivas',
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"[{self.protocolo}] {self.solicitante.nome} - {self.get_status_atual_display()}"
@@ -229,6 +250,10 @@ def caminho_upload_anexo(instance: 'Anexo', filename: str) -> str:
 class Anexo(models.Model):
     """
     Armazena os metadados e o arquivo anexado à solicitação de impressão.
+    Integridade:
+    - FK para Solicitacao (solicitacao_id) com CASCADE.
+    - Validador restrito de formato PDF.
+    - Check constraint: tamanho_bytes > 0.
     """
 
     solicitacao = models.ForeignKey(
@@ -243,6 +268,7 @@ class Anexo(models.Model):
     )
     arquivo = models.FileField(
         upload_to=caminho_upload_anexo,
+        validators=[FileExtensionValidator(allowed_extensions=['pdf'])],
         verbose_name='Arquivo',
     )
     tipo_arquivo = models.CharField(
@@ -251,6 +277,7 @@ class Anexo(models.Model):
         verbose_name='Tipo MIME',
     )
     tamanho_bytes = models.BigIntegerField(
+        validators=[MinValueValidator(1)],
         verbose_name='Tamanho em Bytes',
     )
     enviado_em = models.DateTimeField(
@@ -262,6 +289,15 @@ class Anexo(models.Model):
         verbose_name = 'Anexo'
         verbose_name_plural = 'Anexos'
         ordering = ['enviado_em', 'id']
+        indexes = [
+            models.Index(fields=['solicitacao', 'enviado_em'], name='idx_anexo_solic_data'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(tamanho_bytes__gt=0),
+                name='check_anexo_tamanho_positivo',
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.nome_original} ({self.solicitacao.protocolo})"
@@ -269,7 +305,14 @@ class Anexo(models.Model):
 
 class HistoricoStatus(models.Model):
     """
-    Audita cada mudança de status ocorrida na solicitação.
+    Tabela de Histórico (Auditoria de Status).
+    Registra cada transição de status ocorrida em uma solicitação.
+    
+    Integridade Relacional:
+    - FK para Solicitacao (solicitacao_id) com CASCADE (se o pedido for apagado, o histórico correspondente é removido).
+    - FK para Usuario (usuario_responsavel_id) com SET_NULL (se o operador/colaborador for removido do sistema, o registro de histórico permanece com autor nulo para preservação da auditoria).
+    - Timestamp de registro automático (data_hora).
+    - Campo observacao para documentar motivos de pendência ou cancelamento.
     """
 
     solicitacao = models.ForeignKey(
@@ -296,6 +339,7 @@ class HistoricoStatus(models.Model):
     )
     data_hora = models.DateTimeField(
         auto_now_add=True,
+        db_index=True,
         verbose_name='Data e Hora da Transição',
     )
     observacao = models.TextField(
@@ -306,7 +350,12 @@ class HistoricoStatus(models.Model):
     class Meta:
         verbose_name = 'Histórico de Status'
         verbose_name_plural = 'Históricos de Status'
+        # Ordem cronológica decrescente para exibir transições mais recentes primeiro
         ordering = ['-data_hora', '-id']
+        indexes = [
+            models.Index(fields=['solicitacao', '-data_hora'], name='idx_hist_solic_data'),
+            models.Index(fields=['usuario_responsavel'], name='idx_hist_usuario'),
+        ]
 
     def __str__(self) -> str:
         return f"{self.solicitacao.protocolo}: {self.status_anterior} -> {self.status_novo}"
@@ -315,6 +364,10 @@ class HistoricoStatus(models.Model):
 class ExcecaoPrioridade(models.Model):
     """
     Registra formalmente a justificativa para antecipar um pedido fora da ordem FIFO.
+    Integridade:
+    - FK para Solicitacao com CASCADE.
+    - FK para Usuario (autorizador) com PROTECT (evita excluir usuário enquanto for autorizador de exceção ativa).
+    - Check constraint: justificativa obrigatória não vazia.
     """
 
     solicitacao = models.ForeignKey(
@@ -325,7 +378,7 @@ class ExcecaoPrioridade(models.Model):
     )
     autorizado_por = models.ForeignKey(
         Usuario,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='excecoes_autorizadas',
         verbose_name='Autorizado por',
     )
@@ -341,6 +394,16 @@ class ExcecaoPrioridade(models.Model):
         verbose_name = 'Exceção de Prioridade'
         verbose_name_plural = 'Exceções de Prioridade'
         ordering = ['-criada_em', '-id']
+        indexes = [
+            models.Index(fields=['solicitacao'], name='idx_excecao_solicitacao'),
+            models.Index(fields=['autorizado_por'], name='idx_excecao_autorizador'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(justificativa=''),
+                name='check_excecao_justificativa_obrigatoria',
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"Exceção [{self.solicitacao.protocolo}] autorizada por {self.autorizado_por.nome}"
