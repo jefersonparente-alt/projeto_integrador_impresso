@@ -254,6 +254,12 @@ class ViewsFluxoCompletoTestCase(TestCase):
             setor_turma='Setor de Impressões',
         )
 
+        self.admin = Usuario.objects.create_superuser(
+            email='admin@escola.edu.br',
+            nome='Administrador Geral',
+            password='senha_segura_admin',
+        )
+
         # Solicitação prévia de A
         self.solic_a = Solicitacao.objects.create(
             protocolo=gerar_protocolo_unico(),
@@ -419,5 +425,49 @@ class ViewsFluxoCompletoTestCase(TestCase):
         self.assertEqual(self.solic_a.anexos.count(), 1)
         self.assertEqual(self.solic_a.anexos.first().nome_original, 'arquivo_corrigido.pdf')
         self.assertIn('Páginas faltantes adicionadas', self.solic_a.historicos.first().observacao)
+
+    def test_consulta_publica_protocolo(self):
+        """Valida busca rápida por protocolo e exibição da linha do tempo."""
+        resp = self.client.get(f'/consulta/?protocolo={self.solic_a.protocolo}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, self.solic_a.protocolo)
+
+        # Protocolo inexistente
+        resp_inexistente = self.client.get('/consulta/?protocolo=IMP-999999-INEXISTENTE')
+        self.assertEqual(resp_inexistente.status_code, 200)
+        self.assertContains(resp_inexistente, "Nenhuma solicitação encontrada")
+
+    def test_gerenciamento_administrativo_permissoes_e_usuarios(self):
+        """Valida acesso exclusivo do administrador e gestão de perfis de usuários."""
+        # 1. Solicitante bloqueado no painel administrativo
+        self.client.login(username=self.solicitante_a.email, password=self.senha_padrao)
+        resp_bloqueado = self.client.get('/gestao/')
+        self.assertEqual(resp_bloqueado.status_code, 403)
+
+        # 2. Administrador acessa painel e relatórios com sucesso
+        self.client.login(username=self.admin.email, password='senha_segura_admin')
+        resp_admin = self.client.get('/gestao/')
+        self.assertEqual(resp_admin.status_code, 200)
+        self.assertContains(resp_admin, "Gestão Administrativa e Relatórios")
+
+        # 3. Administrador altera perfil do Solicitante B para Colaborador
+        resp_altera = self.client.post('/gestao/usuarios/', {
+            'usuario_id': self.solicitante_b.id,
+            'acao': 'alterar_perfil',
+            'novo_perfil': Usuario.PERFIL_COLABORADOR,
+        })
+        self.assertEqual(resp_altera.status_code, 302)
+        self.solicitante_b.refresh_from_db()
+        self.assertEqual(self.solicitante_b.perfil, Usuario.PERFIL_COLABORADOR)
+
+        # 4. Administrador desativa a conta do Solicitante A
+        resp_desativa = self.client.post('/gestao/usuarios/', {
+            'usuario_id': self.solicitante_a.id,
+            'acao': 'alternar_status',
+        })
+        self.assertEqual(resp_desativa.status_code, 302)
+        self.solicitante_a.refresh_from_db()
+        self.assertFalse(self.solicitante_a.is_active)
+
 
 

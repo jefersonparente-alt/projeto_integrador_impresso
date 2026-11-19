@@ -28,6 +28,17 @@ def colaborador_required(view_func):
     return _wrapped_view
 
 
+def admin_required(view_func):
+    """Decorator para restringir acesso a administradores do sistema."""
+    @wraps(view_func)
+    @login_required
+    def _wrapped_view(request, *args, **kwargs):
+        if not (request.user.is_administrador or request.user.is_superuser):
+            raise PermissionDenied("Acesso restrito a administradores do sistema.")
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+
 def login_view(request):
     """Tela de autenticação do sistema."""
     if request.user.is_authenticated:
@@ -385,3 +396,151 @@ def atendimento_solicitacao(request, protocolo):
         'status_choices': Solicitacao.STATUS_CHOICES,
     }
     return render(request, 'setor/atendimento.html', context)
+
+
+# ==============================================================================
+# CONSULTA RÁPIDA DE SOLICITAÇÃO (POR PROTOCOLO)
+# ==============================================================================
+
+def consulta_publica_protocolo(request):
+    """
+    Permite consultar a situação e histórico de uma solicitação a partir do protocolo.
+    """
+    protocolo = request.GET.get('protocolo', '').strip().upper()
+    solicitacao = None
+    historicos = []
+
+    if protocolo:
+        solicitacao = Solicitacao.objects.filter(protocolo=protocolo).first()
+        if solicitacao:
+            historicos = solicitacao.historicos.all().order_by('-data_hora')
+        else:
+            messages.warning(request, f'Nenhuma solicitação encontrada com o protocolo "{protocolo}".')
+
+    return render(request, 'consulta.html', {
+        'protocolo': protocolo,
+        'solicitacao': solicitacao,
+        'historicos': historicos,
+    })
+
+
+# ==============================================================================
+# GERENCIAMENTO ADMINISTRATIVO (RELATÓRIOS E USUÁRIOS)
+# ==============================================================================
+
+@admin_required
+def painel_administrativo(request):
+    """
+    Painel de Gestão e Relatórios da Administração Escolar.
+    Métricas globais de volume, status, tipos de impressão e consulta geral.
+    """
+    from django.db.models import Sum
+
+    qs = Solicitacao.objects.all()
+
+    # Métricas gerais
+    total_solicitacoes = qs.count()
+    total_copias = qs.aggregate(total=Sum('quantidade_copias'))['total'] or 0
+    total_usuarios = Usuario.objects.count()
+    usuarios_ativos = Usuario.objects.filter(is_active=True).count()
+
+    # Distribuição por status
+    status_counts = {
+        'recebidas': qs.filter(status_atual=Solicitacao.STATUS_RECEBIDA).count(),
+        'em_andamento': qs.filter(status_atual=Solicitacao.STATUS_EM_ANDAMENTO).count(),
+        'aguardando_correcao': qs.filter(status_atual=Solicitacao.STATUS_AGUARDANDO_CORRECAO).count(),
+        'concluidas': qs.filter(status_atual=Solicitacao.STATUS_CONCLUIDA).count(),
+        'canceladas': qs.filter(status_atual=Solicitacao.STATUS_CANCELADA).count(),
+    }
+
+    # Distribuição por tipo de impressão
+    tipo_counts = {
+        'pb': qs.filter(tipo_impressao=Solicitacao.TIPO_PB).count(),
+        'colorida': qs.filter(tipo_impressao=Solicitacao.TIPO_COLORIDA).count(),
+    }
+
+    # Filtros de consulta geral
+    status_filtro = request.GET.get('status', '').strip()
+    busca = request.GET.get('q', '').strip()
+    solicitacoes = qs.order_by('-criado_em')
+
+    if status_filtro and status_filtro in dict(Solicitacao.STATUS_CHOICES):
+        solicitacoes = solicitacoes.filter(status_atual=status_filtro)
+
+    if busca:
+        solicitacoes = solicitacoes.filter(
+            Q(protocolo__icontains=busca) |
+            Q(solicitante__nome__icontains=busca) |
+            Q(solicitante__email__icontains=busca) |
+            Q(setor_turma__icontains=busca)
+        )
+
+    context = {
+        'total_solicitacoes': total_solicitacoes,
+        'total_copias': total_copias,
+        'total_usuarios': total_usuarios,
+        'usuarios_ativos': usuarios_ativos,
+        'status_counts': status_counts,
+        'tipo_counts': tipo_counts,
+        'solicitacoes': solicitacoes[:50],  # Limite para exibição
+        'status_filtro': status_filtro,
+        'busca': busca,
+        'status_choices': Solicitacao.STATUS_CHOICES,
+    }
+    return render(request, 'admin_panel/painel.html', context)
+
+
+@admin_required
+def gestao_usuarios(request):
+    """
+    Gestão de Usuários e Permissões.
+    Permite aos administradores alterar perfis e ativar/desativar contas.
+    """
+    if request.method == 'POST':
+        usuario_id = request.POST.get('usuario_id')
+        acao = request.POST.get('acao')
+        usuario_alvo = get_object_or_404(Usuario, id=usuario_id)
+
+        # Não permite auto-desativação do próprio administrador conectado
+        if usuario_alvo == request.user and acao == 'alternar_status':
+            messages.error(request, 'Você não pode desativar sua própria conta de administrador.')
+            return redirect('gestao_usuarios')
+
+        if acao == 'alterar_perfil':
+            novo_perfil = request.POST.get('novo_perfil')
+            if novo_perfil in dict(Usuario.PERFIL_CHOICES):
+                usuario_alvo.perfil = novo_perfil
+                if novo_perfil == Usuario.PERFIL_ADMINISTRADOR:
+                    usuario_alvo.is_staff = True
+                usuario_alvo.save()
+                messages.success(request, f'Perfil de {usuario_alvo.nome} atualizado para "{usuario_alvo.get_perfil_display()}".')
+
+        elif acao == 'alternar_status':
+            usuario_alvo.is_active = not usuario_alvo.is_active
+            usuario_alvo.save()
+            estado = "ativada" if usuario_alvo.is_active else "desativada"
+            messages.success(request, f'Conta de {usuario_alvo.nome} foi {estado} com sucesso.')
+
+        return redirect('gestao_usuarios')
+
+    perfil_filtro = request.GET.get('perfil', '').strip()
+    busca = request.GET.get('q', '').strip()
+    usuarios = Usuario.objects.all().order_by('nome')
+
+    if perfil_filtro and perfil_filtro in dict(Usuario.PERFIL_CHOICES):
+        usuarios = usuarios.filter(perfil=perfil_filtro)
+
+    if busca:
+        usuarios = usuarios.filter(
+            Q(nome__icontains=busca) |
+            Q(email__icontains=busca) |
+            Q(setor_turma__icontains=busca)
+        )
+
+    context = {
+        'usuarios': usuarios,
+        'perfil_filtro': perfil_filtro,
+        'busca': busca,
+        'perfil_choices': Usuario.PERFIL_CHOICES,
+    }
+    return render(request, 'admin_panel/usuarios.html', context)

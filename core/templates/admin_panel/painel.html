@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Painel Administrativo e Relatórios • Sistema de Impressões{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Cabeçalho Administrativo -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold mb-0 text-dark">Gestão Administrativa e Relatórios</h3>
+                <span class="badge bg-danger text-uppercase" style="font-size: 0.72rem;">Administração</span>
+            </div>
+            <p class="text-muted small mb-0">Visão executiva global, métricas de volume, indicadores de atendimento e auditoria.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'gestao_usuarios' %}" class="btn btn-primary btn-sm fw-semibold shadow-sm" style="background-color: var(--primary-color);">
+                <i class="bi bi-people-fill me-1"></i> Gerenciar Usuários
+            </a>
+            <a href="/admin/" target="_blank" class="btn btn-outline-secondary btn-sm" title="Django Admin Nativo">
+                <i class="bi bi-shield-lock me-1"></i> Django Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Indicadores e Métricas Globais -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white">
+                <div class="text-muted small fw-semibold text-uppercase" style="font-size: 0.72rem;">Total de Solicitações</div>
+                <div class="fs-2 fw-bold text-dark mt-1">{{ total_solicitacoes }}</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Histórico completo registrado</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-primary">
+                <div class="text-primary small fw-semibold text-uppercase" style="font-size: 0.72rem;">Total de Cópias Impressas</div>
+                <div class="fs-2 fw-bold text-dark mt-1">{{ total_copias }}</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Volume acumulado de exemplares</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-success">
+                <div class="text-success small fw-semibold text-uppercase" style="font-size: 0.72rem;">Pedidos Concluídos</div>
+                <div class="fs-2 fw-bold text-dark mt-1">{{ status_counts.concluidas }}</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Atendimentos finalizados com sucesso</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-info">
+                <div class="text-info small fw-semibold text-uppercase" style="font-size: 0.72rem;">Usuários Ativos</div>
+                <div class="fs-2 fw-bold text-dark mt-1">{{ usuarios_ativos }}</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">De um total de {{ total_usuarios }} cadastrados</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribuição por Status e Tipos de Impressão -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6">
+            <div class="card card-custom bg-white p-3 h-100">
+                <h6 class="fw-bold mb-3 text-dark small text-uppercase"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Distribuição por Status</h6>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span><i class="bi bi-inbox-fill text-info me-1"></i> Recebidas (Na fila)</span>
+                    <span class="badge badge-recebida">{{ status_counts.recebidas }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span><i class="bi bi-gear-wide-connected text-warning me-1"></i> Em andamento</span>
+                    <span class="badge badge-em-andamento">{{ status_counts.em_andamento }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span><i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Aguardando correção</span>
+                    <span class="badge badge-aguardando-correcao">{{ status_counts.aguardando_correcao }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span><i class="bi bi-check-circle-fill text-success me-1"></i> Concluídas</span>
+                    <span class="badge badge-concluida">{{ status_counts.concluidas }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center small">
+                    <span><i class="bi bi-x-circle-fill text-secondary me-1"></i> Canceladas</span>
+                    <span class="badge badge-cancelada">{{ status_counts.canceladas }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="card card-custom bg-white p-3 h-100">
+                <h6 class="fw-bold mb-3 text-dark small text-uppercase"><i class="bi bi-palette-fill text-primary me-2"></i>Tipo de Impressão</h6>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span>Preto e Branco</span>
+                    <span class="badge bg-dark">{{ tipo_counts.pb }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3 small">
+                    <span>Colorida</span>
+                    <span class="badge bg-primary">{{ tipo_counts.colorida }}</span>
+                </div>
+                <hr>
+                <div class="small text-muted">
+                    <i class="bi bi-shield-check text-success me-1"></i>
+                    Acesso a relatórios gerenciais conforme especificações do Documento Norteador (Item 18).
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consulta Geral de Solicitações (Visão do Administrador) -->
+    <div class="card card-custom bg-white shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-bottom p-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-list-check text-primary me-2"></i>Consulta Global de Todas as Solicitações</h6>
+            <form method="get" class="d-flex gap-2">
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="Buscar solicitante, protocolo..." value="{{ busca }}">
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Status (Todos)</option>
+                    {% for valor, rotulo in status_choices %}
+                    <option value="{{ valor }}" {% if status_filtro == valor %}selected{% endif %}>{{ rotulo }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Filtrar</button>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small text-uppercase" style="font-size: 0.72rem;">
+                    <tr>
+                        <th scope="col" class="ps-3">Protocolo</th>
+                        <th scope="col">Solicitante</th>
+                        <th scope="col">Setor / Turma</th>
+                        <th scope="col">Data de Envio</th>
+                        <th scope="col">Cópias / Tipo</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" class="text-end pe-3">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in solicitacoes %}
+                    <tr>
+                        <td class="ps-3">
+                            <span class="font-monospace fw-bold text-primary">{{ item.protocolo }}</span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark small">{{ item.solicitante.nome }}</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">{{ item.solicitante.email }}</div>
+                        </td>
+                        <td class="small">{{ item.setor_turma }}</td>
+                        <td class="small text-muted">{{ item.criado_em|date:"d/m/Y H:i" }}</td>
+                        <td class="small">
+                            <span class="badge bg-light text-dark border">{{ item.quantidade_copias }}x</span>
+                            <span class="badge bg-light text-dark border">{{ item.get_tipo_impressao_display }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary small">{{ item.get_status_atual_display }}</span>
+                        </td>
+                        <td class="text-end pe-3">
+                            <a href="{% url 'detalhe_solicitacao' protocolo=item.protocolo %}" class="btn btn-outline-secondary btn-sm" title="Ver Detalhes">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted small">
+                            Nenhuma solicitação encontrada com os critérios informados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
