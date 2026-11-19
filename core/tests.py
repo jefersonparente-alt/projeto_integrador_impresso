@@ -183,3 +183,33 @@ class BancoDeDadosModelosTestCase(TestCase):
         self.assertEqual(solicitacao.excecoes_prioridade.count(), 1)
         self.assertEqual(excecao.autorizado_por, self.admin)
         self.assertIn("prova institucional", excecao.justificativa)
+
+    def test_rotina_backup_sistema(self):
+        """Valida a execução do comando de backup e a política de retenção."""
+        import tempfile
+        import zipfile
+        from pathlib import Path
+        from django.core.management import call_command
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # 1. Executa comando de backup apontando para diretório temporário
+            call_command('backup_sistema', output_dir=temp_dir, keep=2)
+
+            backup_files = list(Path(temp_dir).glob('backup_sistema_*.zip'))
+            self.assertEqual(len(backup_files), 1)
+
+            # 2. Inspeciona o arquivo zip gerado
+            with zipfile.ZipFile(backup_files[0], 'r') as z:
+                nomes = z.namelist()
+                self.assertIn('manifesto.json', nomes)
+                self.assertIn('banco/dados_dump.json', nomes)
+
+            # 3. Testa política de retenção (gera mais 2 backups para exceder keep=2)
+            time.sleep(1.0)
+            call_command('backup_sistema', output_dir=temp_dir, keep=2)
+            time.sleep(1.0)
+            call_command('backup_sistema', output_dir=temp_dir, keep=2)
+
+            backup_files_pos = list(Path(temp_dir).glob('backup_sistema_*.zip'))
+            self.assertEqual(len(backup_files_pos), 2)
+

@@ -264,6 +264,33 @@ projeto_integador_impressao/
    - Aplicação: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
    - Painel Administrativo: [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/)
 
+### 9.1 Rotina de Backup e Restauração
+
+O sistema possui uma rotina automatizada que consolida em arquivo comprimido (`.zip`):
+- Snapshot consistente do banco de dados (SQLite via API de backup a quente).
+- Dump dos dados relacionais em JSON (`dumpdata`).
+- Todos os arquivos de documentos anexados (`media/`).
+- Manifesto com metadados e data/hora.
+- Política de retenção configurável (elimina automaticamente backups antigos).
+
+**Para executar o backup manualmente**:
+```bash
+python manage.py backup_sistema --keep 7
+```
+
+**Para validar ou restaurar um backup**:
+```bash
+# Simulação (dry-run):
+python manage.py restaurar_backup backups/backup_sistema_YYYYMMDD_HHMMSS.zip
+
+# Confirmação de restauração:
+python manage.py restaurar_backup backups/backup_sistema_YYYYMMDD_HHMMSS.zip --confirmar
+```
+
+**Automação com Agendador de Tarefas / Cron**:
+- Windows: Executar [scripts/executar_backup.ps1](file:///c:/Users/ALUNO/Documents/projeto_integador_impressao/scripts/executar_backup.ps1) via Agendador de Tarefas do Windows.
+- Linux: Executar [scripts/executar_backup.sh](file:///c:/Users/ALUNO/Documents/projeto_integador_impressao/scripts/executar_backup.sh) via Cron.
+
 ---
 
 ## 10. Roteiro de Etapas de Desenvolvimento

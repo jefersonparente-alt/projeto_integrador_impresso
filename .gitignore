@@ -50,6 +50,11 @@ media/*
 # Arquivos Estáticos Coletados em Produção
 staticfiles/
 
+# Backups do Sistema (Banco de Dados e Anexos)
+backups/
+backups/*
+!backups/.gitkeep
+
 # ==========================================
 # Variáveis de Ambiente e Segredos
 # ==========================================
