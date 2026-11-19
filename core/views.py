@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from .forms import LoginForm, SolicitacaoForm, CadastroUsuarioForm
+from .forms import LoginForm, SolicitacaoForm, CadastroUsuarioForm, CorrecaoSolicitacaoForm
 from .models import Anexo, HistoricoStatus, Solicitacao, Usuario
 from .services import (
     alterar_status_solicitacao,
@@ -194,6 +194,34 @@ def detalhe_solicitacao(request, protocolo):
     ):
         raise PermissionDenied("Você não possui permissão para visualizar esta solicitação.")
 
+    # Tratamento de correção de anexo quando status for AGUARDANDO_CORRECAO
+    correcao_form = None
+    if solicitacao.status_atual == Solicitacao.STATUS_AGUARDANDO_CORRECAO and solicitacao.solicitante == request.user:
+        if request.method == 'POST' and request.POST.get('acao') == 'enviar_correcao':
+            correcao_form = CorrecaoSolicitacaoForm(request.POST, request.FILES)
+            if correcao_form.is_valid():
+                with transaction.atomic():
+                    novo_arquivo = correcao_form.cleaned_data['arquivo']
+                    Anexo.objects.create(
+                        solicitacao=solicitacao,
+                        nome_original=novo_arquivo.name,
+                        arquivo=novo_arquivo,
+                        tipo_arquivo=getattr(novo_arquivo, 'content_type', 'application/pdf'),
+                        tamanho_bytes=novo_arquivo.size,
+                    )
+                    obs = correcao_form.cleaned_data.get('observacao', '').strip()
+                    msg_obs = f"Correção enviada pelo solicitante. {obs}".strip()
+                    alterar_status_solicitacao(
+                        solicitacao=solicitacao,
+                        novo_status=Solicitacao.STATUS_RECEBIDA,
+                        usuario_responsavel=request.user,
+                        observacao=msg_obs,
+                    )
+                messages.success(request, 'Documento corrigido enviado com sucesso! O pedido retornou para a fila de atendimento.')
+                return redirect('detalhe_solicitacao', protocolo=solicitacao.protocolo)
+        else:
+            correcao_form = CorrecaoSolicitacaoForm()
+
     historicos = solicitacao.historicos.all().order_by('-data_hora')
     anexos = solicitacao.anexos.all()
     excecoes = solicitacao.excecoes_prioridade.all()
@@ -203,6 +231,7 @@ def detalhe_solicitacao(request, protocolo):
         'historicos': historicos,
         'anexos': anexos,
         'excecoes': excecoes,
+        'correcao_form': correcao_form,
     }
     return render(request, 'solicitante/detalhe_solicitacao.html', context)
 

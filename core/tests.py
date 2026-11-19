@@ -396,4 +396,28 @@ class ViewsFluxoCompletoTestCase(TestCase):
         resp = self.client.get('/setor/')
         self.assertEqual(resp.status_code, 403)
 
+    def test_reenvio_anexo_aguardando_correcao(self):
+        """Valida fluxo de reenvio de PDF pelo solicitante quando o status for AGUARDANDO_CORRECAO."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        # Define status inicial como aguardando correção
+        self.solic_a.status_atual = Solicitacao.STATUS_AGUARDANDO_CORRECAO
+        self.solic_a.save()
+
+        self.client.login(username=self.solicitante_a.email, password=self.senha_padrao)
+        novo_pdf = SimpleUploadedFile("arquivo_corrigido.pdf", b"%PDF-1.4 corrigido", content_type="application/pdf")
+
+        resp = self.client.post(f'/solicitacoes/{self.solic_a.protocolo}/', {
+            'acao': 'enviar_correcao',
+            'arquivo': novo_pdf,
+            'observacao': 'Páginas faltantes adicionadas.',
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        self.solic_a.refresh_from_db()
+        self.assertEqual(self.solic_a.status_atual, Solicitacao.STATUS_RECEBIDA)
+        self.assertEqual(self.solic_a.anexos.count(), 1)
+        self.assertEqual(self.solic_a.anexos.first().nome_original, 'arquivo_corrigido.pdf')
+        self.assertIn('Páginas faltantes adicionadas', self.solic_a.historicos.first().observacao)
+
 

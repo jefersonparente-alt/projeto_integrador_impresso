@@ -46,6 +46,50 @@
         </div>
     </div>
 
+    <!-- Card de Ação: Correção de Documento Pendente -->
+    {% if correcao_form %}
+    <div class="card card-custom border-danger bg-white shadow-sm mb-4">
+        <div class="card-header bg-danger text-white py-3 d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+            <h6 class="fw-bold mb-0">Atenção: Seu pedido aguarda correção</h6>
+        </div>
+        <div class="card-body p-4">
+            <p class="text-dark small mb-3">
+                O setor de impressos identificou uma pendência ou problema com o arquivo original.
+                Por favor, anexe abaixo o <strong>documento corrigido em PDF</strong> para que o pedido retorne à fila de atendimento.
+            </p>
+            <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="enviar_correcao">
+
+                <div class="mb-3">
+                    <label for="{{ correcao_form.arquivo.id_for_label }}" class="form-label fw-semibold small">
+                        Novo Arquivo PDF Corrigido <span class="text-danger">*</span>
+                    </label>
+                    {{ correcao_form.arquivo }}
+                    {% if correcao_form.arquivo.errors %}
+                    <div class="text-danger small mt-1">{{ correcao_form.arquivo.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ correcao_form.observacao.id_for_label }}" class="form-label fw-semibold small">
+                        Observação / O que foi corrigido
+                    </label>
+                    {{ correcao_form.observacao }}
+                    {% if correcao_form.observacao.errors %}
+                    <div class="text-danger small mt-1">{{ correcao_form.observacao.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn btn-danger fw-semibold shadow-sm">
+                    <i class="bi bi-send-check-fill me-1"></i> Reenviar Documento Corrigido
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row g-4">
         <!-- Coluna da Esquerda: Dados e Anexo -->
         <div class="col-12 col-lg-7">

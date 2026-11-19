@@ -228,3 +228,50 @@ class SolicitacaoForm(forms.ModelForm):
         if not copias or copias < 1:
             raise ValidationError('A quantidade de cópias deve ser de pelo menos 1 exemplar.')
         return copias
+
+
+class CorrecaoSolicitacaoForm(forms.Form):
+    """
+    Formulário para reenvio de anexo corrigido pelo Solicitante quando o pedido
+    estiver no status 'Aguardando correção'.
+    """
+
+    arquivo = forms.FileField(
+        label='Novo Arquivo Corrigido (PDF)',
+        help_text='Tamanho máximo: 25 MB. Aceita apenas arquivos .pdf.',
+        widget=forms.ClearableFileInput(
+            attrs={
+                'class': 'form-control',
+                'accept': 'application/pdf,.pdf',
+            }
+        ),
+    )
+    observacao = forms.CharField(
+        label='Explicação das Correções Efetuadas',
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Descreva brevemente o que foi ajustado no novo arquivo enviado...',
+            }
+        ),
+    )
+
+    def clean_arquivo(self):
+        arquivo = self.cleaned_data.get('arquivo')
+        if not arquivo:
+            raise ValidationError('É obrigatório anexar um novo documento PDF para correção.')
+
+        ext = os.path.splitext(arquivo.name)[1].lower()
+        if ext != '.pdf':
+            raise ValidationError('Formato inválido. Apenas arquivos com extensão .pdf são aceitos.')
+
+        if arquivo.size > TAMANHO_MAXIMO_ANEXO_BYTES:
+            tamanho_mb = arquivo.size / (1024 * 1024)
+            raise ValidationError(
+                f'O arquivo excede o limite permitido de 25 MB ({tamanho_mb:.1f} MB).'
+            )
+
+        return arquivo
+
