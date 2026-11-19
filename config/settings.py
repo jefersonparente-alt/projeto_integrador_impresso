@@ -127,6 +127,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Modelo customizado de Usuário
 AUTH_USER_MODEL = 'core.Usuario'
 
+# Autenticação e Redirecionamento
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'solicitante_home'
+LOGOUT_REDIRECT_URL = 'login'
+
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
