@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo e Relatórios • Sistema de Impressões</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --primary-hover: #1e40af;
+            --secondary-bg: #f8fafc;
+        }
+        body {
+            background-color: var(--secondary-bg);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .navbar-brand-custom {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #ffffff !important;
+        }
+        .main-content {
+            flex: 1 0 auto;
+        }
+        .footer-custom {
+            flex-shrink: 0;
+            background-color: #ffffff;
+            border-top: 1px solid #e2e8f0;
+        }
+        .badge-recebida { background-color: #0284c7; color: #fff; }
+        .badge-em-andamento { background-color: #f59e0b; color: #000; }
+        .badge-aguardando-correcao { background-color: #ef4444; color: #fff; }
+        .badge-concluida { background-color: #10b981; color: #fff; }
+        .badge-cancelada { background-color: #64748b; color: #fff; }
+        .card-custom {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        }
+    </style>
+    
+</head>
+<body>
+    <!-- Navbar Superior -->
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm" style="background-color: var(--primary-color);">
+        <div class="container">
+            <a class="navbar-brand navbar-brand-custom d-flex align-items-center gap-2" href="/">
+                <i class="bi bi-printer-fill fs-4 text-info"></i>
+                <span>Portal de Impressões</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Alternar navegação">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarMain">
+                
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/">
+                            <i class="bi bi-collection me-1"></i> Minhas Solicitações
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/solicitacoes/nova/">
+                            <i class="bi bi-plus-circle me-1"></i> Nova Solicitação
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/consulta/">
+                            <i class="bi bi-search me-1"></i> Consultar Protocolo
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link " href="/setor/">
+                            <i class="bi bi-kanban me-1"></i> Fila do Setor (FIFO)
+                        </a>
+                    </li>
+                    
+                    
+                    <li class="nav-item">
+                        <a class="nav-link " href="/gestao/">
+                            <i class="bi bi-graph-up-arrow me-1"></i> Gestão Administrativa
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/" target="_blank">
+                            <i class="bi bi-shield-lock me-1"></i> Django Admin
+                        </a>
+                    </li>
+                    
+                </ul>
+
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-white text-end d-none d-md-block">
+                        <div class="fw-semibold small">Administrador do Sistema</div>
+                        <span class="badge bg-light text-dark text-uppercase" style="font-size: 0.65rem;">Administrador</span>
+                    </div>
+                    <a href="/logout/" class="btn btn-outline-light btn-sm d-flex align-items-center gap-1" title="Encerrar Sessão">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Sair</span>
+                    </a>
+                </div>
+                
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mensagens de Feedback (Alerts) -->
+    <div class="container mt-3">
+        
+    </div>
+
+    <!-- Conteúdo Principal -->
+    <main class="main-content py-4">
+        
+<div class="container">
+    <!-- Cabeçalho Administrativo -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold mb-0 text-dark">Gestão Administrativa e Relatórios</h3>
+                <span class="badge bg-danger text-uppercase" style="font-size: 0.72rem;">Administração</span>
+            </div>
+            <p class="text-muted small mb-0">Visão executiva global, métricas de volume, indicadores de atendimento e auditoria.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/gestao/usuarios/" class="btn btn-primary btn-sm fw-semibold shadow-sm" style="background-color: var(--primary-color);">
+                <i class="bi bi-people-fill me-1"></i> Gerenciar Usuários
+            </a>
+            <a href="/admin/" target="_blank" class="btn btn-outline-secondary btn-sm" title="Django Admin Nativo">
+                <i class="bi bi-shield-lock me-1"></i> Django Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Indicadores e Métricas Globais -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white">
+                <div class="text-muted small fw-semibold text-uppercase" style="font-size: 0.72rem;">Total de Solicitações</div>
+                <div class="fs-2 fw-bold text-dark mt-1">2</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Histórico completo registrado</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-primary">
+                <div class="text-primary small fw-semibold text-uppercase" style="font-size: 0.72rem;">Total de Cópias Impressas</div>
+                <div class="fs-2 fw-bold text-dark mt-1">20</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Volume acumulado de exemplares</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-success">
+                <div class="text-success small fw-semibold text-uppercase" style="font-size: 0.72rem;">Pedidos Concluídos</div>
+                <div class="fs-2 fw-bold text-dark mt-1">2</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Atendimentos finalizados com sucesso</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-custom h-100 p-3 bg-white border-start border-4 border-info">
+                <div class="text-info small fw-semibold text-uppercase" style="font-size: 0.72rem;">Usuários Ativos</div>
+                <div class="fs-2 fw-bold text-dark mt-1">5</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">De um total de 5 cadastrados</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribuição por Status e Tipos de Impressão -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6">
+            <div class="card card-custom bg-white p-3 h-100">
+                <h6 class="fw-bold mb-3 text-dark small text-uppercase"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Distribuição por Status</h6>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span><i class="bi bi-inbox-fill text-info me-1"></i> Recebidas (Na fila)</span>
+                    <span class="badge badge-recebida">0</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span><i class="bi bi-gear-wide-connected text-warning me-1"></i> Em andamento</span>
+                    <span class="badge badge-em-andamento">0</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span><i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Aguardando correção</span>
+                    <span class="badge badge-aguardando-correcao">0</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span><i class="bi bi-check-circle-fill text-success me-1"></i> Concluídas</span>
+                    <span class="badge badge-concluida">2</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center small">
+                    <span><i class="bi bi-x-circle-fill text-secondary me-1"></i> Canceladas</span>
+                    <span class="badge badge-cancelada">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="card card-custom bg-white p-3 h-100">
+                <h6 class="fw-bold mb-3 text-dark small text-uppercase"><i class="bi bi-palette-fill text-primary me-2"></i>Tipo de Impressão</h6>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span>Preto e Branco</span>
+                    <span class="badge bg-dark">1</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3 small">
+                    <span>Colorida</span>
+                    <span class="badge bg-primary">1</span>
+                </div>
+                <hr>
+                <div class="small text-muted">
+                    <i class="bi bi-shield-check text-success me-1"></i>
+                    Acesso a relatórios gerenciais conforme especificações do Documento Norteador (Item 18).
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consulta Geral de Solicitações (Visão do Administrador) -->
+    <div class="card card-custom bg-white shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-bottom p-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-list-check text-primary me-2"></i>Consulta Global de Todas as Solicitações</h6>
+            <form method="get" class="d-flex gap-2">
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="Buscar solicitante, protocolo..." value="">
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Status (Todos)</option>
+                    
+                    <option value="RECEBIDA" >Recebida</option>
+                    
+                    <option value="EM_ANDAMENTO" >Em andamento</option>
+                    
+                    <option value="AGUARDANDO_CORRECAO" >Aguardando correção</option>
+                    
+                    <option value="CONCLUIDA" >Concluída</option>
+                    
+                    <option value="CANCELADA" >Cancelada</option>
+                    
+                </select>
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Filtrar</button>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small text-uppercase" style="font-size: 0.72rem;">
+                    <tr>
+                        <th scope="col" class="ps-3">Protocolo</th>
+                        <th scope="col">Solicitante</th>
+                        <th scope="col">Setor / Turma</th>
+                        <th scope="col">Data de Envio</th>
+                        <th scope="col">Cópias / Tipo</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" class="text-end pe-3">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td class="ps-3">
+                            <span class="font-monospace fw-bold text-primary">IMP-202611-IKAM</span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark small">Lucas Estudante</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">aluno.demo@escola.edu.br</div>
+                        </td>
+                        <td class="small">Coordenação</td>
+                        <td class="small text-muted">19/11/2026 10:56</td>
+                        <td class="small">
+                            <span class="badge bg-light text-dark border">5x</span>
+                            <span class="badge bg-light text-dark border">Colorida</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary small">Concluída</span>
+                        </td>
+                        <td class="text-end pe-3">
+                            <a href="/solicitacoes/IMP-202611-IKAM/" class="btn btn-outline-secondary btn-sm" title="Ver Detalhes">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="ps-3">
+                            <span class="font-monospace fw-bold text-primary">IMP-202611-95VC</span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark small">Lucas Estudante</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">aluno.demo@escola.edu.br</div>
+                        </td>
+                        <td class="small">2º Ano Informática</td>
+                        <td class="small text-muted">19/11/2026 10:56</td>
+                        <td class="small">
+                            <span class="badge bg-light text-dark border">15x</span>
+                            <span class="badge bg-light text-dark border">Preto e Branco</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary small">Concluída</span>
+                        </td>
+                        <td class="text-end pe-3">
+                            <a href="/solicitacoes/IMP-202611-95VC/" class="btn btn-outline-secondary btn-sm" title="Ver Detalhes">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="footer-custom py-3 mt-auto">
+        <div class="container text-center text-muted small">
+            <div><strong>Sistema de Solicitação e Gestão de Impressões</strong> • Projeto Integrador</div>
+            <div class="text-secondary" style="font-size: 0.75rem;">Fila de Atendimento FIFO • Desenvolvimento Web com Python e Django</div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+</body>
+</html>

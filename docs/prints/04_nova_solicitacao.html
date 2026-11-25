@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Solicitação de Impressão • Sistema de Impressões</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --primary-hover: #1e40af;
+            --secondary-bg: #f8fafc;
+        }
+        body {
+            background-color: var(--secondary-bg);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .navbar-brand-custom {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #ffffff !important;
+        }
+        .main-content {
+            flex: 1 0 auto;
+        }
+        .footer-custom {
+            flex-shrink: 0;
+            background-color: #ffffff;
+            border-top: 1px solid #e2e8f0;
+        }
+        .badge-recebida { background-color: #0284c7; color: #fff; }
+        .badge-em-andamento { background-color: #f59e0b; color: #000; }
+        .badge-aguardando-correcao { background-color: #ef4444; color: #fff; }
+        .badge-concluida { background-color: #10b981; color: #fff; }
+        .badge-cancelada { background-color: #64748b; color: #fff; }
+        .card-custom {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        }
+    </style>
+    
+</head>
+<body>
+    <!-- Navbar Superior -->
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm" style="background-color: var(--primary-color);">
+        <div class="container">
+            <a class="navbar-brand navbar-brand-custom d-flex align-items-center gap-2" href="/">
+                <i class="bi bi-printer-fill fs-4 text-info"></i>
+                <span>Portal de Impressões</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Alternar navegação">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarMain">
+                
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/">
+                            <i class="bi bi-collection me-1"></i> Minhas Solicitações
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active fw-semibold" href="/solicitacoes/nova/">
+                            <i class="bi bi-plus-circle me-1"></i> Nova Solicitação
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/consulta/">
+                            <i class="bi bi-search me-1"></i> Consultar Protocolo
+                        </a>
+                    </li>
+                    
+                    
+                </ul>
+
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-white text-end d-none d-md-block">
+                        <div class="fw-semibold small">João Professor</div>
+                        <span class="badge bg-light text-dark text-uppercase" style="font-size: 0.65rem;">Solicitante</span>
+                    </div>
+                    <a href="/logout/" class="btn btn-outline-light btn-sm d-flex align-items-center gap-1" title="Encerrar Sessão">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Sair</span>
+                    </a>
+                </div>
+                
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mensagens de Feedback (Alerts) -->
+    <div class="container mt-3">
+        
+    </div>
+
+    <!-- Conteúdo Principal -->
+    <main class="main-content py-4">
+        
+<div class="container">
+    <!-- Breadcrumb e Título -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="/" class="text-decoration-none">Minhas Solicitações</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Nova Solicitação</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card card-custom bg-white shadow-sm border-0 mb-4">
+                <div class="card-header bg-white border-bottom p-4">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-circle" style="width: 48px; height: 48px;">
+                            <i class="bi bi-file-earmark-plus-fill fs-4"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold mb-1">Formulário de Solicitação de Impressão</h4>
+                            <p class="text-muted small mb-0">Preencha as informações do pedido e anexe o documento em PDF para entrar na fila do setor.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- Alerta de Regra de Negócio (FIFO e PDF) -->
+                    <div class="alert alert-info d-flex align-items-start gap-2 py-2 px-3 mb-4 small" role="alert">
+                        <i class="bi bi-info-circle-fill fs-5 text-info flex-shrink-0 mt-1"></i>
+                        <div>
+                            <strong>Regra de Atendimento da Fila (FIFO):</strong> Os pedidos são organizados rigorosamente pela ordem de chegada no servidor. Apenas arquivos no formato <strong>PDF</strong> de até <strong>25 MB</strong> são aceitos.
+                        </div>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data" novalidate>
+                        <input type="hidden" name="csrfmiddlewaretoken" value="qWVlX9fieQcRgltmyNrocxx0xrda6KkcWl1DdzGSQko07MFX6lL9HLQinacXCThX">
+
+                        
+
+                        <!-- Dados do Solicitante (Identificação) -->
+                        <div class="bg-light p-3 rounded-3 border mb-4">
+                            <div class="row g-2 align-items-center">
+                                <div class="col-12 col-sm-6">
+                                    <div class="text-muted small">Solicitante Conectado:</div>
+                                    <div class="fw-bold text-dark">João Professor</div>
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <div class="text-muted small">E-mail da Conta:</div>
+                                    <div class="text-dark">solicitante@escola.edu.br</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Seção 1: Origem e Contato -->
+                        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+                            <i class="bi bi-geo-alt-fill text-primary me-1"></i> 1. Origem e Contato
+                        </h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-12 col-md-6">
+                                <label for="id_setor_turma" class="form-label fw-semibold small">
+                                    Setor, Turma ou Departamento <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="setor_turma" value="Departamento de Matemática" class="form-control" placeholder="Ex: 3º Ano Informática, Coordenação Pedagógica, etc." maxlength="100" required id="id_setor_turma">
+                                
+                                <div class="form-text small">Identifica o setor ou sala de aula para onde o material será direcionado.</div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="id_contato" class="form-label fw-semibold small">
+                                    Contato Direto (Telefone ou E-mail) <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="contato" value="joao.prof@escola.edu.br" class="form-control" placeholder="Ex: (11) 98888-7777 ou email@escola.edu.br" maxlength="50" required id="id_contato">
+                                
+                                <div class="form-text small">Utilizado pelo setor de impressos caso haja dúvidas ou pendências.</div>
+                            </div>
+                        </div>
+
+                        <!-- Seção 2: Opções de Impressão -->
+                        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+                            <i class="bi bi-sliders text-primary me-1"></i> 2. Opções e Quantidade de Impressão
+                        </h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-12 col-sm-4">
+                                <label for="id_quantidade_copias" class="form-label fw-semibold small">
+                                    Quantidade de Cópias <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" name="quantidade_copias" value="1" class="form-control" min="0" value="1" required id="id_quantidade_copias">
+                                
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label for="id_tipo_impressao" class="form-label fw-semibold small">
+                                    Tipo de Impressão <span class="text-danger">*</span>
+                                </label>
+                                <select name="tipo_impressao" class="form-select" id="id_tipo_impressao">
+  <option value="pb" selected>Preto e Branco</option>
+
+  <option value="colorida">Colorida</option>
+
+</select>
+                                
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label for="id_prazo_desejado" class="form-label fw-semibold small">
+                                    Prazo Desejado (Opcional)
+                                </label>
+                                <input type="date" name="prazo_desejado" class="form-control" id="id_prazo_desejado">
+                                
+                                <div class="form-text small" style="font-size: 0.72rem;">Informativo; não altera a ordem FIFO.</div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check form-switch mt-1">
+                                    <input type="checkbox" name="frente_verso" class="form-check-input" role="switch" id="id_frente_verso">
+                                    <label class="form-check-label fw-semibold small" for="id_frente_verso">
+                                        Imprimir em Frente e Verso (Ecológico)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Seção 3: Anexo do Documento -->
+                        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+                            <i class="bi bi-paperclip text-primary me-1"></i> 3. Documento Anexado (PDF)
+                        </h6>
+                        <div class="mb-4">
+                            <label for="id_arquivo" class="form-label fw-semibold small">
+                                Selecione o arquivo em formato PDF <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" name="arquivo" class="form-control" accept="application/pdf,.pdf" required aria-describedby="id_arquivo_helptext" id="id_arquivo">
+                            
+                            <div class="form-text small">Tamanho máximo permitido: 25 MB. Aceita apenas arquivos .pdf.</div>
+                        </div>
+
+                        <!-- Seção 4: Instruções Adicionais -->
+                        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+                            <i class="bi bi-chat-left-text-fill text-primary me-1"></i> 4. Instruções e Observações Técnicas
+                        </h6>
+                        <div class="mb-4">
+                            <label for="id_instrucoes" class="form-label fw-semibold small">
+                                Instruções para o Colaborador (Opcional)
+                            </label>
+                            <textarea name="instrucoes" cols="40" rows="3" class="form-control" placeholder="Ex: Grampear no canto superior esquerdo, imprimir apenas páginas 1 a 10, etc." id="id_instrucoes">
+</textarea>
+                            
+                        </div>
+
+                        <!-- Botões de Ação -->
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                            <a href="/" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i> Voltar
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg fw-semibold px-4 shadow-sm" style="background-color: var(--primary-color);">
+                                <i class="bi bi-send-fill me-2"></i> Enviar Solicitação
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="footer-custom py-3 mt-auto">
+        <div class="container text-center text-muted small">
+            <div><strong>Sistema de Solicitação e Gestão de Impressões</strong> • Projeto Integrador</div>
+            <div class="text-secondary" style="font-size: 0.75rem;">Fila de Atendimento FIFO • Desenvolvimento Web com Python e Django</div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+</body>
+</html>

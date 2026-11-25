@@ -17,6 +17,7 @@ O objetivo do sistema é extinguir o recebimento desorganizado de pedidos de imp
 - **Autenticação**: Suporte a login nativo Django, separando os perfis: `solicitante`, `colaborador` e `administrador`.
 - **Fila Cronológica**: A ordem padrão no setor é sempre baseada no instante de chegada registrado pelo servidor.
 - **Armazenamento Privado**: Nenhum anexo de impressão pode ser acessível publicamente via URL direta de pasta estática/mídia.
+- **Arquitetura de Deploy**: Suporte a ambiente local (SQLite) e produção serverless na **Vercel** com banco PostgreSQL no **Neon** via `dj-database-url` e entrega de estáticos via **WhiteNoise**.
 
 ---
 
@@ -194,6 +195,7 @@ Ao implementar ou alterar qualquer funcionalidade, os seguintes testes unitário
 | **TC12** | Administrador consegue alterar perfis e ativar/desativar contas com proteção contra auto-bloqueio. |
 | **TC13** | Reenvio de arquivo PDF corrigido pelo solicitante quando o pedido estiver em `Aguardando correção`. |
 | **TC14** | Rotina de backup gera pacote zip com snapshot SQLite, dump JSON, mídias e retenção automática. |
+| **TC15** | Compatibilidade de conexão de banco de dados híbrido (SQLite local / PostgreSQL Neon via `DATABASE_URL`). |
 
 ---
 
@@ -226,6 +228,10 @@ Ao implementar ou alterar qualquer funcionalidade, os seguintes testes unitário
 3. **Ao implementar Views**:
    - Utilize decorators (`@login_required`) e verificação de perfil de acesso (`request.user.perfil`).
    - Retorne feedback ao usuário via `django.contrib.messages` (mensagens de sucesso, aviso e erro).
-4. **Ao finalizar alterações**:
+4. **Deploy e Produção (Vercel + Neon)**:
+   - Configuração de banco centralizada em `DATABASE_URL` (`dj-database-url` + driver `psycopg`).
+   - Arquivos estáticos servidos via **WhiteNoise** com compilação prévia via `collectstatic`.
+   - População inicial de usuários em novos bancos através de `python manage.py seed_data`.
+5. **Ao finalizar alterações**:
    - Execute a suíte de testes: `python manage.py test`.
    - Certifique-se de que nenhum arquivo sensível, chave secreta ou lixo de build seja commitado.
